@@ -1,0 +1,108 @@
+{
+  "entities": {
+    "Parcel": {
+      "title": "Parcel",
+      "description": "Represents an express cargo shipment between Mandalay and Kalay gates.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique parcel identifier" },
+        "trackingNumber": { "type": "string", "description": "Bar code / QR tracking code" },
+        "senderName": { "type": "string", "description": "Sender customer name" },
+        "senderPhone": { "type": "string", "description": "Sender phone number" },
+        "receiverName": { "type": "string", "description": "Receiver customer name" },
+        "receiverPhone": { "type": "string", "description": "Receiver phone number" },
+        "receiverAddress": { "type": "string", "description": "Kalay delivery address" },
+        "itemType": { "type": "string", "description": "Description of cargo goods" },
+        "weightViss": { "type": "number", "description": "Weight in Myanmar Viss" },
+        "customerRatePerViss": { "type": "number", "description": "Rate charged to customer" },
+        "totalDeliveryFee": { "type": "number", "description": "Calculated customer delivery fee in MMK" },
+        "truckExpense": { "type": "number", "description": "12-wheel truck expense in MMK" },
+        "mandalayLaborExpense": { "type": "number", "description": "Loading labor fee in MMK" },
+        "kalayLaborExpense": { "type": "number", "description": "Unloading labor fee in MMK" },
+        "netProfit": { "type": "number", "description": "Net margin in MMK" },
+        "status": {
+          "type": "string",
+          "enum": ["BOOKED", "LOADED", "IN_TRANSIT", "ARRIVED_KALAY", "DELIVERED", "CLAIMED_LOST"]
+        },
+        "paymentStatus": {
+          "type": "string",
+          "enum": ["PAID", "UNPAID", "COD"]
+        },
+        "isBulkyGoods": { "type": "boolean", "description": "Volumetric / bulky goods flag" },
+        "tripId": { "type": "string", "description": "Assigned 12-wheel truck trip ID" },
+        "versionSequence": { "type": "number", "description": "Concurrency version sequence number" },
+        "createdAt": { "type": "string", "description": "Timestamp ISO string" },
+        "updatedAt": { "type": "string", "description": "Timestamp ISO string" }
+      },
+      "required": ["id", "trackingNumber", "senderName", "receiverName", "weightViss", "status", "paymentStatus"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "Represents a 12-wheel truck cargo trip operating between Mandalay and Kalay.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "truckNumber": { "type": "string" },
+        "driverName": { "type": "string" },
+        "driverPhone": { "type": "string" },
+        "departureDate": { "type": "string" },
+        "maxCapacityViss": { "type": "number" },
+        "currentLoadedViss": { "type": "number" },
+        "parcelIds": { "type": "array" },
+        "advancePaymentMdy": { "type": "number" },
+        "remainingSettlementKalay": { "type": "number" },
+        "status": {
+          "type": "string",
+          "enum": ["LOADING", "IN_TRANSIT", "ARRIVED", "COMPLETED"]
+        }
+      },
+      "required": ["id", "truckNumber", "driverName", "status"]
+    },
+    "Claim": {
+      "title": "Claim",
+      "description": "Lost or damaged cargo claim deduction.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "parcelId": { "type": "string" },
+        "incidentType": { "type": "string", "enum": ["LOST", "DAMAGED", "SHORTAGE"] },
+        "claimedAmount": { "type": "number" },
+        "approvedCompensation": { "type": "number" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED_PAID", "REJECTED"] }
+      },
+      "required": ["id", "parcelId", "incidentType", "claimedAmount", "status"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Staff account with role and gate location.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "MANDALAY_STAFF", "KALAY_STAFF", "DRIVER"] },
+        "gateLocation": { "type": "string" },
+        "pin": { "type": "string" }
+      },
+      "required": ["id", "name", "role", "gateLocation"]
+    }
+  },
+  "firestore": {
+    "/parcels/{parcelId}": {
+      "schema": { "$ref": "#/entities/Parcel" },
+      "description": "Collection of all parcel consignments."
+    },
+    "/trips/{tripId}": {
+      "schema": { "$ref": "#/entities/Trip" },
+      "description": "Collection of 12-wheel truck trips."
+    },
+    "/claims/{claimId}": {
+      "schema": { "$ref": "#/entities/Claim" },
+      "description": "Collection of damage and loss claims."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Collection of authorized gate staff users."
+    }
+  }
+}

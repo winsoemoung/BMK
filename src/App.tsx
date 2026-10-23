@@ -25,6 +25,18 @@ import { ParcelBookingModal } from './components/ParcelBookingModal';
 import { DigitalReceiptModal } from './components/DigitalReceiptModal';
 import { AdminPricingModal } from './components/AdminPricingModal';
 import { LoginModal } from './components/LoginModal';
+import { testFirestoreConnection } from './firebase/config';
+import { 
+  seedInitialDataIfEmpty,
+  subscribeToParcels,
+  subscribeToTrips,
+  subscribeToClaims,
+  subscribeToPricingConfig,
+  syncParcelToFirestore,
+  syncTripToFirestore,
+  syncClaimToFirestore,
+  syncPricingConfigToFirestore
+} from './firebase/firestoreService';
 
 export default function App() {
   // Persistent state with localStorage
@@ -100,6 +112,44 @@ export default function App() {
   const [selectedParcelForReceipt, setSelectedParcelForReceipt] = useState<Parcel | null>(null);
   const [parcelForClaim, setParcelForClaim] = useState<Parcel | null>(null);
 
+  // Connect to Cloud Firestore & Listen to Real-Time Updates
+  useEffect(() => {
+    testFirestoreConnection().then(() => {
+      seedInitialDataIfEmpty();
+    });
+
+    const unsubParcels = subscribeToParcels((liveParcels) => {
+      if (liveParcels && liveParcels.length > 0) {
+        setParcels(liveParcels);
+      }
+    });
+
+    const unsubTrips = subscribeToTrips((liveTrips) => {
+      if (liveTrips && liveTrips.length > 0) {
+        setTrips(liveTrips);
+      }
+    });
+
+    const unsubClaims = subscribeToClaims((liveClaims) => {
+      if (liveClaims && liveClaims.length > 0) {
+        setClaims(liveClaims);
+      }
+    });
+
+    const unsubPricing = subscribeToPricingConfig((livePricing) => {
+      if (livePricing) {
+        setPricingConfig(livePricing);
+      }
+    });
+
+    return () => {
+      unsubParcels();
+      unsubTrips();
+      unsubClaims();
+      unsubPricing();
+    };
+  }, []);
+
   // Sync to local storage
   useEffect(() => {
     try {
@@ -144,6 +194,7 @@ export default function App() {
   // Parcel handlers
   const handleBookParcel = (newParcel: Parcel) => {
     setParcels((prev) => [newParcel, ...prev]);
+    syncParcelToFirestore(newParcel);
 
     // If trip was selected, update loaded viss in trip
     if (newParcel.tripId) {
@@ -152,7 +203,7 @@ export default function App() {
           if (t.id === newParcel.tripId) {
             const updatedLoaded = t.currentLoadedViss + newParcel.weightViss;
             const updatedRent = updatedLoaded * pricingConfig.truckRatePerViss;
-            return {
+            const updatedTrip = {
               ...t,
               currentLoadedViss: updatedLoaded,
               parcelIds: [...t.parcelIds, newParcel.id],
@@ -161,6 +212,8 @@ export default function App() {
               totalKalayLabor: updatedLoaded * pricingConfig.kalayLaborPerViss,
               remainingSettlementKalay: Math.max(0, updatedRent - t.advancePaymentMdy),
             };
+            syncTripToFirestore(updatedTrip);
+            return updatedTrip;
           }
           return t;
         })
@@ -173,34 +226,70 @@ export default function App() {
 
   const handleUpdateParcelStatus = (parcelId: string, newStatus: ParcelStatus) => {
     setParcels((prev) =>
-      prev.map((p) => (p.id === parcelId ? { ...p, status: newStatus, updatedAt: new Date().toISOString() } : p))
+      prev.map((p) => {
+        if (p.id === parcelId) {
+          const updated = { ...p, status: newStatus, updatedAt: new Date().toISOString() };
+          syncParcelToFirestore(updated);
+          return updated;
+        }
+        return p;
+      })
     );
   };
 
   const handleBatchUpdateStatus = (parcelIds: string[], newStatus: ParcelStatus) => {
     setParcels((prev) =>
-      prev.map((p) => (parcelIds.includes(p.id) ? { ...p, status: newStatus, updatedAt: new Date().toISOString() } : p))
+      prev.map((p) => {
+        if (parcelIds.includes(p.id)) {
+          const updated = { ...p, status: newStatus, updatedAt: new Date().toISOString() };
+          syncParcelToFirestore(updated);
+          return updated;
+        }
+        return p;
+      })
     );
   };
 
   // Trip handlers
   const handleAddTrip = (newTrip: Trip) => {
     setTrips((prev) => [newTrip, ...prev]);
+    syncTripToFirestore(newTrip);
   };
 
   const handleUpdateTripStatus = (tripId: string, status: TripStatus) => {
     setTrips((prev) =>
-      prev.map((t) => (t.id === tripId ? { ...t, status } : t))
+      prev.map((t) => {
+        if (t.id === tripId) {
+          const updated = { ...t, status };
+          syncTripToFirestore(updated);
+          return updated;
+        }
+        return t;
+      })
     );
 
     // Also update parcels assigned to this trip if in transit or arrived
     if (status === 'IN_TRANSIT') {
       setParcels((prev) =>
-        prev.map((p) => (p.tripId === tripId && p.status === 'LOADED' ? { ...p, status: 'IN_TRANSIT' } : p))
+        prev.map((p) => {
+          if (p.tripId === tripId && p.status === 'LOADED') {
+            const updated = { ...p, status: 'IN_TRANSIT' as ParcelStatus };
+            syncParcelToFirestore(updated);
+            return updated;
+          }
+          return p;
+        })
       );
     } else if (status === 'ARRIVED') {
       setParcels((prev) =>
-        prev.map((p) => (p.tripId === tripId && p.status === 'IN_TRANSIT' ? { ...p, status: 'ARRIVED_KALAY' } : p))
+        prev.map((p) => {
+          if (p.tripId === tripId && p.status === 'IN_TRANSIT') {
+            const updated = { ...p, status: 'ARRIVED_KALAY' as ParcelStatus };
+            syncParcelToFirestore(updated);
+            return updated;
+          }
+          return p;
+        })
       );
     }
   };
@@ -209,13 +298,15 @@ export default function App() {
     setTrips((prev) =>
       prev.map((t) => {
         if (t.id === tripId) {
-          return {
+          const updated = {
             ...t,
             advancePaymentMdy: advanceMdy,
             isDriverSettled: isSettled,
             driverSettledDate: isSettled ? new Date().toISOString() : undefined,
             remainingSettlementKalay: isSettled ? 0 : Math.max(0, t.totalTruckRentFee - advanceMdy),
           };
+          syncTripToFirestore(updated);
+          return updated;
         }
         return t;
       })
@@ -227,10 +318,12 @@ export default function App() {
       prev.map((t) => {
         if (t.id === tripId) {
           const currentExpenses = t.expenses || [];
-          return {
+          const updated = {
             ...t,
             expenses: [expense, ...currentExpenses],
           };
+          syncTripToFirestore(updated);
+          return updated;
         }
         return t;
       })
@@ -240,13 +333,17 @@ export default function App() {
   // Claims handlers
   const handleAddClaim = (newClaim: Claim) => {
     setClaims((prev) => [newClaim, ...prev]);
+    syncClaimToFirestore(newClaim);
 
     setParcels((prev) =>
-      prev.map((p) =>
-        p.id === newClaim.parcelId
-          ? { ...p, status: 'CLAIMED_LOST', claimId: newClaim.id, notes: newClaim.description }
-          : p
-      )
+      prev.map((p) => {
+        if (p.id === newClaim.parcelId) {
+          const updated = { ...p, status: 'CLAIMED_LOST' as ParcelStatus, claimId: newClaim.id, notes: newClaim.description };
+          syncParcelToFirestore(updated);
+          return updated;
+        }
+        return p;
+      })
     );
   };
 
@@ -254,12 +351,14 @@ export default function App() {
     setClaims((prev) =>
       prev.map((c) => {
         if (c.id === claimId) {
-          return {
+          const updated = {
             ...c,
             status,
             approvedCompensation: approvedAmount !== undefined ? approvedAmount : c.approvedCompensation,
             resolvedDate: new Date().toISOString(),
           };
+          syncClaimToFirestore(updated);
+          return updated;
         }
         return c;
       })
@@ -471,7 +570,10 @@ export default function App() {
         isOpen={isPricingModalOpen}
         onClose={() => setIsPricingModalOpen(false)}
         pricingConfig={pricingConfig}
-        onSavePricingConfig={setPricingConfig}
+        onSavePricingConfig={(newConfig) => {
+          setPricingConfig(newConfig);
+          syncPricingConfigToFirestore(newConfig);
+        }}
         lang={lang}
       />
 

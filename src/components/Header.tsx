@@ -72,10 +72,14 @@ export const Header: React.FC<HeaderProps> = ({
               <span>BMK Express</span>
               <span className="text-amber-400 font-normal text-xs sm:text-sm hidden sm:inline">Mandalay ⇄ Kalay</span>
             </button>
-            <span className="text-[10px] font-mono text-emerald-400 font-semibold leading-none flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Single APK · Role-Based Auth
-            </span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] font-mono text-emerald-400 font-semibold leading-none flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                Cloud: pos-sync-511822
+              </span>
+              <span className="text-slate-600 text-[10px]">·</span>
+              <span className="text-[10px] font-mono text-slate-400">Offline Persistence</span>
+            </div>
           </div>
         </div>
 
