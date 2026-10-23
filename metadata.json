@@ -1,0 +1,6 @@
+{
+  "name": "BMK Express Car Gate (Mandalay ⇄ Kalay)",
+  "description": "Production-grade delivery car gate management system for BMK (Mandalay to Kalay) with 12-wheel truck tracking, automated viss rates, compensation ledger, and Android Studio Kotlin architecture.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
