@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Parcel, Trip, Claim, UserRole, ParcelStatus, ClaimStatus, TripStatus, DriverExpenseEntry } from './types/bmk';
+import { 
+  Parcel, 
+  Trip, 
+  Claim, 
+  UserRole, 
+  ParcelStatus, 
+  ClaimStatus, 
+  TripStatus, 
+  DriverExpenseEntry,
+  WeightUnit,
+  GatePricingConfig,
+  DEFAULT_GATE_PRICING,
+  AppUserAccount
+} from './types/bmk';
 import { INITIAL_PARCELS, INITIAL_TRIPS, INITIAL_CLAIMS } from './data/mockData';
+import { BMK_STAFF_ACCOUNTS } from './data/mockUsers';
 import { Header } from './components/Header';
 import { FinancialDashboard } from './components/FinancialDashboard';
 import { ParcelList } from './components/ParcelList';
@@ -9,6 +23,8 @@ import { ClaimsManagement } from './components/ClaimsManagement';
 import { AndroidStudioHub } from './components/AndroidStudioHub';
 import { ParcelBookingModal } from './components/ParcelBookingModal';
 import { DigitalReceiptModal } from './components/DigitalReceiptModal';
+import { AdminPricingModal } from './components/AdminPricingModal';
+import { LoginModal } from './components/LoginModal';
 
 export default function App() {
   // Persistent state with localStorage
@@ -39,13 +55,48 @@ export default function App() {
     }
   });
 
+  // Gate Rates Pricing Configuration (Admin customizable)
+  const [pricingConfig, setPricingConfig] = useState<GatePricingConfig>(() => {
+    try {
+      const saved = localStorage.getItem('bmk_pricing_config');
+      return saved ? JSON.parse(saved) : DEFAULT_GATE_PRICING;
+    } catch {
+      return DEFAULT_GATE_PRICING;
+    }
+  });
+
+  // Weight Unit state: 'VISS' (ပိဿာ) or 'KG' (ကီလို)
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(() => {
+    try {
+      const saved = localStorage.getItem('bmk_weight_unit');
+      return (saved as WeightUnit) || 'VISS';
+    } catch {
+      return 'VISS';
+    }
+  });
+
+  const [currentUser, setCurrentUser] = useState<AppUserAccount>(() => {
+    try {
+      const saved = localStorage.getItem('bmk_active_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const found = BMK_STAFF_ACCOUNTS.find((a) => a.id === parsed.id);
+        if (found) return found;
+      }
+    } catch {}
+    return BMK_STAFF_ACCOUNTS[0]; // Default to Admin
+  });
+
+  const userRole = currentUser.role;
+
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'parcels' | 'trips' | 'claims' | 'android-studio'>('dashboard');
-  const [userRole, setUserRole] = useState<UserRole>('ADMIN');
   const [isMobileView, setIsMobileView] = useState(false);
   const [lang, setLang] = useState<'my' | 'en'>('my');
 
   // Modals
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [selectedParcelForReceipt, setSelectedParcelForReceipt] = useState<Parcel | null>(null);
   const [parcelForClaim, setParcelForClaim] = useState<Parcel | null>(null);
 
@@ -74,6 +125,22 @@ export default function App() {
     }
   }, [claims]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('bmk_pricing_config', JSON.stringify(pricingConfig));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [pricingConfig]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bmk_weight_unit', weightUnit);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [weightUnit]);
+
   // Parcel handlers
   const handleBookParcel = (newParcel: Parcel) => {
     setParcels((prev) => [newParcel, ...prev]);
@@ -84,14 +151,14 @@ export default function App() {
         prevTrips.map((t) => {
           if (t.id === newParcel.tripId) {
             const updatedLoaded = t.currentLoadedViss + newParcel.weightViss;
-            const updatedRent = updatedLoaded * 1100;
+            const updatedRent = updatedLoaded * pricingConfig.truckRatePerViss;
             return {
               ...t,
               currentLoadedViss: updatedLoaded,
               parcelIds: [...t.parcelIds, newParcel.id],
               totalTruckRentFee: updatedRent,
-              totalMdyLabor: updatedLoaded * 25,
-              totalKalayLabor: updatedLoaded * 25,
+              totalMdyLabor: updatedLoaded * pricingConfig.mdyLaborPerViss,
+              totalKalayLabor: updatedLoaded * pricingConfig.kalayLaborPerViss,
               remainingSettlementKalay: Math.max(0, updatedRent - t.advancePaymentMdy),
             };
           }
@@ -174,7 +241,6 @@ export default function App() {
   const handleAddClaim = (newClaim: Claim) => {
     setClaims((prev) => [newClaim, ...prev]);
 
-    // Mark parcel status as claimed
     setParcels((prev) =>
       prev.map((p) =>
         p.id === newClaim.parcelId
@@ -205,22 +271,55 @@ export default function App() {
     setCurrentTab('claims');
   };
 
+  const handleToggleWeightUnit = () => {
+    setWeightUnit((prev) => (prev === 'VISS' ? 'KG' : 'VISS'));
+  };
+
+  const handleSelectUser = (user: AppUserAccount) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('bmk_active_user', JSON.stringify(user));
+    } catch (e) {
+      console.error(e);
+    }
+
+    // Role-based smart route redirect if user doesn't have access to current tab
+    if (user.role === 'MANDALAY_STAFF' && currentTab === 'dashboard') {
+      setCurrentTab('parcels');
+    } else if (user.role === 'KALAY_STAFF' && (currentTab === 'dashboard' || currentTab === 'claims')) {
+      setCurrentTab('trips');
+    } else if (user.role === 'DRIVER') {
+      setCurrentTab('trips');
+    }
+  };
+
+  const handleQuickRoleSwitch = (role: UserRole) => {
+    const target = BMK_STAFF_ACCOUNTS.find((a) => a.role === role);
+    if (target) {
+      handleSelectUser(target);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Top Navigation */}
       <Header
         currentTab={currentTab}
         onTabChange={setCurrentTab}
-        userRole={userRole}
-        onRoleChange={setUserRole}
+        currentUser={currentUser}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
+        onQuickRoleSwitch={handleQuickRoleSwitch}
+        weightUnit={weightUnit}
+        onToggleWeightUnit={handleToggleWeightUnit}
         isMobileView={isMobileView}
         onToggleMobileView={() => setIsMobileView(!isMobileView)}
         lang={lang}
         onToggleLang={() => setLang(lang === 'my' ? 'en' : 'my')}
         onOpenBookingModal={() => setIsBookingModalOpen(true)}
+        onOpenPricingModal={() => setIsPricingModalOpen(true)}
       />
 
-      {/* Main Content Area: Responsive Desktop or Simulated Android Frame */}
+      {/* Main Content Area */}
       <main className="flex-1 py-6 px-4 sm:px-6">
         {isMobileView ? (
           /* Mobile Android Device Mockup Frame */
@@ -245,15 +344,19 @@ export default function App() {
                     trips={trips}
                     claims={claims}
                     userRole={userRole}
+                    pricingConfig={pricingConfig}
+                    weightUnit={weightUnit}
                     lang={lang}
                     onNavigateTab={setCurrentTab}
                     onOpenBookingModal={() => setIsBookingModalOpen(true)}
+                    onOpenPricingModal={() => setIsPricingModalOpen(true)}
                   />
                 )}
                 {currentTab === 'parcels' && (
                   <ParcelList
                     parcels={parcels}
                     userRole={userRole}
+                    weightUnit={weightUnit}
                     lang={lang}
                     onSelectParcelForReceipt={setSelectedParcelForReceipt}
                     onUpdateStatus={handleUpdateParcelStatus}
@@ -295,7 +398,7 @@ export default function App() {
             </div>
           </div>
         ) : (
-          /* Desktop Baseline (1200px - 1440px wide) */
+          /* Desktop Baseline */
           <div className="max-w-7xl mx-auto">
             {currentTab === 'dashboard' && (
               <FinancialDashboard
@@ -303,15 +406,19 @@ export default function App() {
                 trips={trips}
                 claims={claims}
                 userRole={userRole}
+                pricingConfig={pricingConfig}
+                weightUnit={weightUnit}
                 lang={lang}
                 onNavigateTab={setCurrentTab}
                 onOpenBookingModal={() => setIsBookingModalOpen(true)}
+                onOpenPricingModal={() => setIsPricingModalOpen(true)}
               />
             )}
             {currentTab === 'parcels' && (
               <ParcelList
                 parcels={parcels}
                 userRole={userRole}
+                weightUnit={weightUnit}
                 lang={lang}
                 onSelectParcelForReceipt={setSelectedParcelForReceipt}
                 onUpdateStatus={handleUpdateParcelStatus}
@@ -348,12 +455,23 @@ export default function App() {
         )}
       </main>
 
-      {/* Booking Modal */}
+      {/* Booking Modal with Viss & Kg input options */}
       <ParcelBookingModal
         isOpen={isBookingModalOpen}
         onClose={() => setIsBookingModalOpen(false)}
         onBookParcel={handleBookParcel}
         trips={trips}
+        pricingConfig={pricingConfig}
+        defaultWeightUnit={weightUnit}
+        lang={lang}
+      />
+
+      {/* Admin Pricing Modal for Custom Rates */}
+      <AdminPricingModal
+        isOpen={isPricingModalOpen}
+        onClose={() => setIsPricingModalOpen(false)}
+        pricingConfig={pricingConfig}
+        onSavePricingConfig={setPricingConfig}
         lang={lang}
       />
 
@@ -361,6 +479,16 @@ export default function App() {
       <DigitalReceiptModal
         parcel={selectedParcelForReceipt}
         onClose={() => setSelectedParcelForReceipt(null)}
+        weightUnit={weightUnit}
+        lang={lang}
+      />
+
+      {/* Single APK Account Switcher & Login Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        currentUser={currentUser}
+        onSelectUser={handleSelectUser}
         lang={lang}
       />
 
@@ -368,7 +496,9 @@ export default function App() {
       <footer className="border-t border-slate-900 bg-slate-950 py-4 text-xs text-slate-500 text-center">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>BMK Express Car Gate (Mandalay ⇄ Kalay) Express Logistics System</span>
-          <span>Standard: 1,200 MMK/viss · Bulky (ကုန်ပွ): Custom Rate · 12-Wheel Truck: 1,100 MMK</span>
+          <span>
+            {weightUnit === 'VISS' ? '၁ ပိဿာ' : '1 Kg'} = {pricingConfig.customerRatePerViss} MMK/viss (~ {(pricingConfig.customerRatePerViss / 1.63293).toFixed(1)} MMK/kg) · ကားခ {pricingConfig.truckRatePerViss} MMK · အလုပ်သမား {pricingConfig.mdyLaborPerViss + pricingConfig.kalayLaborPerViss} MMK
+          </span>
         </div>
       </footer>
     </div>

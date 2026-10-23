@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Parcel, ParcelStatus, UserRole, PaymentStatus } from '../types/bmk';
-import { formatMMK, formatNumber, getStatusBurmese } from '../utils/formatters';
+import { Parcel, ParcelStatus, UserRole, PaymentStatus, WeightUnit } from '../types/bmk';
+import { formatMMK, formatNumber, formatWeight, formatRate, getStatusBurmese } from '../utils/formatters';
 import { 
   Search, 
   QrCode, 
@@ -21,6 +21,7 @@ import {
 interface ParcelListProps {
   parcels: Parcel[];
   userRole: UserRole;
+  weightUnit: WeightUnit;
   lang: 'my' | 'en';
   onSelectParcelForReceipt: (parcel: Parcel) => void;
   onUpdateStatus: (parcelId: string, newStatus: ParcelStatus) => void;
@@ -32,6 +33,7 @@ interface ParcelListProps {
 export const ParcelList: React.FC<ParcelListProps> = ({
   parcels,
   userRole,
+  weightUnit,
   lang,
   onSelectParcelForReceipt,
   onUpdateStatus,
@@ -366,7 +368,7 @@ export const ParcelList: React.FC<ParcelListProps> = ({
                     <span className="font-mono font-bold text-amber-400 text-sm">{parcel.id}</span>
                     {parcel.isBulkyGoods && (
                       <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30">
-                        📦 ကုန်ပွ ({parcel.customerRatePerViss} ကျပ်/ပိသာ)
+                        📦 ကုန်ပွ ({formatRate(parcel.customerRatePerViss, weightUnit, lang)})
                       </span>
                     )}
                     <span className="text-slate-500 text-xs">·</span>
@@ -435,9 +437,9 @@ export const ParcelList: React.FC<ParcelListProps> = ({
                   </div>
                 </div>
 
-                {/* Row 3: Weight, Rate & Delivery Fee */}
+                {/* Row 3: Weight, Rate & Delivery Fee (using WeightUnit) */}
                 <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-950/80 border border-slate-800">
-                  <div className="flex items-center gap-4 text-xs">
+                  <div className="flex items-center gap-4 text-xs flex-wrap">
                     <div>
                       <span className="text-slate-500 block">{lang === 'my' ? 'အမျိုးအစား' : 'Item'}</span>
                       <span className="font-medium text-slate-200">{parcel.itemType}</span>
@@ -445,13 +447,13 @@ export const ParcelList: React.FC<ParcelListProps> = ({
                     <div>
                       <span className="text-slate-500 block">{lang === 'my' ? 'အလေးချိန်' : 'Weight'}</span>
                       <span className="font-bold font-mono text-amber-400 text-sm">
-                        {parcel.weightViss} ပိသာ
+                        {formatWeight(parcel.weightViss, weightUnit, lang)}
                       </span>
                     </div>
                     <div>
                       <span className="text-slate-500 block">{lang === 'my' ? 'နှုန်းထား' : 'Rate'}</span>
                       <span className="font-mono text-slate-300 font-semibold">
-                        {parcel.customerRatePerViss} MMK/ပိသာ
+                        {formatRate(parcel.customerRatePerViss, weightUnit, lang)}
                       </span>
                     </div>
                   </div>

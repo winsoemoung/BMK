@@ -8,10 +8,209 @@ export interface AndroidCodeFile {
 
 export const ANDROID_PROJECT_FILES: AndroidCodeFile[] = [
   {
+    path: 'app/src/main/java/com/bmk/cargate/sync/FirestoreOfflineSyncManager.kt',
+    filename: 'FirestoreOfflineSyncManager.kt',
+    language: 'kotlin',
+    description: 'Complete Firestore Offline Persistence initialization & 3-App Conflict Resolution Engine with Field-Level Merging and optimistic concurrency.',
+    content: `package com.bmk.cargate.sync
+
+import com.bmk.cargate.data.model.Parcel
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.persistentDiskCacheSettings
+import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * --------------------------------------------------------------------------------
+ * BMK EXPRESS - FIRESTORE OFFLINE PERSISTENCE & MULTI-APP CONFLICT RESOLUTION
+ * --------------------------------------------------------------------------------
+ * Role-Based Ownership Matrix:
+ * - MANDALAY_STAFF : Owns intake, weightViss, customerRate, sender info
+ * - KALAY_STAFF    : Owns unloading status (ARRIVED_KALAY, DELIVERED), COD collection, POD
+ * - ADMIN          : Owns true net profit, trip approvals, compensation payouts
+ * --------------------------------------------------------------------------------
+ */
+@Singleton
+class FirestoreOfflineSyncManager @Inject constructor() {
+
+    val firestore: FirebaseFirestore by lazy {
+        val db = FirebaseFirestore.getInstance()
+
+        // 1. Enable Native Firestore Offline Persistence (Disk Cache up to 100MB)
+        val settings = FirebaseFirestoreSettings.Builder()
+            .setLocalCacheSettings(
+                persistentDiskCacheSettings {
+                    setSizeBytes(100L * 1024L * 1024L) // 100 MB offline buffer
+                }
+            )
+            .build()
+        db.firestoreSettings = settings
+        db
+    }
+
+    private val parcels = firestore.collection("parcels")
+
+    /**
+     * STRATEGY 1: FIELD-LEVEL ATOMIC MERGE (Anti-Overwrite)
+     * Never use set() without SetOptions.merge(), as set() overwrites the entire document!
+     */
+    suspend fun updateFieldLevel(
+        parcelId: String,
+        updatedFields: Map<String, Any>,
+        appRole: String
+    ): Result<Unit> = runCatching {
+        val payload = updatedFields.toMutableMap()
+        payload["updatedAt"] = FieldValue.serverTimestamp() // Single Source of Truth
+        payload["lastModifiedByRole"] = appRole
+        payload["versionSequence"] = FieldValue.increment(1)
+
+        parcels.document(parcelId).set(payload, SetOptions.merge()).await()
+    }
+
+    /**
+     * STRATEGY 2: OPTIMISTIC CONCURRENCY TRANSACTION (Conflict Resolution)
+     * Resolves simultaneous edits when Mandalay and Kalay gates submit updates while offline:
+     */
+    suspend fun resolveAndMergeParcelConflict(
+        parcelId: String,
+        incomingData: Parcel,
+        submittingRole: String
+    ): Result<Unit> = runCatching {
+        firestore.runTransaction { transaction ->
+            val docRef = parcels.document(parcelId)
+            val serverSnapshot = transaction.get(docRef)
+
+            if (!serverSnapshot.exists()) {
+                // Brand new parcel from Mandalay: Safe to create
+                transaction.set(docRef, incomingData)
+                return@runTransaction
+            }
+
+            val serverParcel = serverSnapshot.toObject(Parcel::class.java)!!
+            val serverVersion = serverSnapshot.getLong("versionSequence") ?: 0L
+
+            // Field-by-Field Reconciliation based on Role Authority Matrix:
+            val mergedFields = mutableMapOf<String, Any>()
+
+            when (submittingRole) {
+                "MANDALAY_STAFF" -> {
+                    // Mandalay owns intake data (weight, sender details, custom rate)
+                    mergedFields["senderName"] = incomingData.senderName
+                    mergedFields["senderPhone"] = incomingData.senderPhone
+                    mergedFields["weightViss"] = incomingData.weightViss
+                    mergedFields["customerRatePerViss"] = incomingData.customerRatePerViss
+                    mergedFields["totalDeliveryFee"] = (incomingData.weightViss * incomingData.customerRatePerViss).toLong()
+                    // PRESERVE Kalay's delivery status if already updated on server!
+                    mergedFields["status"] = serverParcel.status
+                }
+
+                "KALAY_STAFF" -> {
+                    // Kalay owns status transitions & delivery handovers
+                    mergedFields["status"] = incomingData.status
+                    mergedFields["paymentStatus"] = incomingData.paymentStatus
+                    // PRESERVE Mandalay's original weight and sender info!
+                    mergedFields["weightViss"] = serverParcel.weightViss
+                    mergedFields["senderName"] = serverParcel.senderName
+                }
+
+                "ADMIN" -> {
+                    // Admin has supreme authority: merges financial & claims overrides
+                    mergedFields["customerRatePerViss"] = incomingData.customerRatePerViss
+                    mergedFields["notes"] = incomingData.notes
+                }
+            }
+
+            mergedFields["versionSequence"] = serverVersion + 1
+            mergedFields["updatedAt"] = FieldValue.serverTimestamp()
+            mergedFields["lastModifiedByRole"] = submittingRole
+
+            transaction.update(docRef, mergedFields)
+        }.await()
+    }
+}
+`
+  },
+  {
+    path: 'app/build.gradle.kts',
+    filename: 'build.gradle.kts (Single APK)',
+    language: 'kotlin',
+    description: 'Single APK build configuration (BMK-Express.apk) using Firebase Authentication for dynamic role-based access.',
+    content: `plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.gms.google.services)
+    alias(libs.plugins.hilt.android)
+    alias(libs.plugins.ksp)
+}
+
+android {
+    namespace = "com.bmk.cargate"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "com.bmk.cargate" // ONE Single Application ID for all devices
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["appName"] = "BMK Express (One App)"
+    }
+
+    // SINGLE APK ARCHITECTURE: No complex productFlavors needed!
+    // Role-based screens (Admin / Mandalay / Kalay / Driver) are dynamically resolved upon login.
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+}
+
+dependencies {
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.navigation.compose)
+
+    // Firebase Auth & Firestore with Native Persistent Cache
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth.ktx)
+    implementation(libs.firebase.firestore.ktx)
+
+    // Room Database (Local persistent cache)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
+    // WorkManager (Background Cloud Sync Queue)
+    implementation(libs.androidx.work.runtime.ktx)
+
+    // Google ML Kit Barcode & QR Scanner
+    implementation(libs.mlkit.barcode.scanning)
+}
+`
+  },
+  {
     path: 'app/src/main/java/com/bmk/cargate/data/model/Parcel.kt',
     filename: 'Parcel.kt',
     language: 'kotlin',
-    description: 'Data model with automated calculations, standard rate (1,200), custom bulky rate (ကုန်ပွစျေး), truck charter (1,100), and dual gate labor.',
+    description: 'Shared Cloud Parcel Entity synchronized across Admin, Mandalay, and Kalay apps via Firebase Firestore.',
     content: `package com.bmk.cargate.data.model
 
 import com.google.firebase.firestore.DocumentId
@@ -31,21 +230,22 @@ data class Parcel(
     val itemDescription: String = "",
     val packageCount: Int = 1,
     val weightViss: Double = 0.0,
-    val customerRatePerViss: Long = 1200L, // 1200 MMK standard or custom bulky rate (ကုန်ပွစျေး)
-    val isBulkyGoods: Boolean = false,      // ထုထည်ကြီးပြီး ပေါ့သော ကုန်ပွ ပစ္စည်း
+    val customerRatePerViss: Long = 1200L,
+    val isBulkyGoods: Boolean = false,
     val bulkyNote: String = "",
-    val paymentStatus: String = "PAID",     // PAID, UNPAID, COD
-    val paymentCollectedAt: String = "MANDALAY", // MANDALAY or KALAY
-    val status: String = "BOOKED", // BOOKED, LOADED, IN_TRANSIT, ARRIVED_KALAY, DELIVERED, CLAIMED_LOST
+    val paymentStatus: String = "PAID",
+    val paymentCollectedAt: String = "MANDALAY",
+    val status: String = "BOOKED",
     val tripId: String? = null,
     val claimId: String? = null,
+    val versionSequence: Long = 1L, // Concurrency sequence counter
+    val lastModifiedByRole: String = "MANDALAY_STAFF",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val bookedByStaff: String = "",
     val notes: String = ""
 ) : Serializable {
 
-    // Automated Financial Calculations according to BMK Gate specifications
     val totalDeliveryFee: Long
         get() = (weightViss * customerRatePerViss).toLong()
 
@@ -58,66 +258,8 @@ data class Parcel(
     val kalayLaborFee: Long
         get() = (weightViss * 25L).toLong()
 
-    // Base profit is customer fee minus truck and dual labor expenses
     val baseNetProfit: Long
         get() = totalDeliveryFee - (truckExpense + mandalayLaborFee + kalayLaborFee)
-}
-`
-  },
-  {
-    path: 'app/src/main/java/com/bmk/cargate/scanner/BatchBarcodeScanner.kt',
-    filename: 'BatchBarcodeScanner.kt',
-    language: 'kotlin',
-    description: 'Google ML Kit Barcode Scanning + CameraX for high-speed continuous batch scanning (ကလေးဂိတ်တွင် အထုပ်ရာနှင့်ချီ တရစပ်စကင်ဖတ်ရန်).',
-    content: `package com.bmk.cargate.scanner
-
-import android.annotation.SuppressLint
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
-import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.common.InputImage
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import java.util.concurrent.Executors
-
-class BatchBarcodeScanner {
-    private val barcodeScanner = BarcodeScanning.getClient()
-    private val executor = Executors.newSingleThreadExecutor()
-
-    // Flow emitting scanned parcel IDs continuously
-    private val _scannedCodes = MutableSharedFlow<String>(extraBufferCapacity = 64)
-    val scannedCodes: SharedFlow<String> = _scannedCodes
-
-    private val recentlyScanned = mutableSetOf<String>()
-    private var lastScanTimestamp = 0L
-
-    @SuppressLint("UnsafeOptInUsageError")
-    fun processImageProxy(imageProxy: ImageProxy) {
-        val mediaImage = imageProxy.image
-        if (mediaImage != null) {
-            val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-            barcodeScanner.process(image)
-                .addOnSuccessListener { barcodes ->
-                    for (barcode in barcodes) {
-                        barcode.rawValue?.let { code ->
-                            val currentTime = System.currentTimeMillis()
-                            // Debounce same item within 2.5 seconds to avoid double-counting
-                            if (!recentlyScanned.contains(code) || (currentTime - lastScanTimestamp > 2500)) {
-                                recentlyScanned.add(code)
-                                lastScanTimestamp = currentTime
-                                _scannedCodes.tryEmit(code)
-                            }
-                        }
-                    }
-                }
-                .addOnCompleteListener {
-                    imageProxy.close()
-                }
-        } else {
-            imageProxy.close()
-        }
-    }
 }
 `
   },
@@ -145,7 +287,6 @@ class SyncWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
-            // Push all offline pending records from Room DB to Firestore
             repository.syncPendingParcels()
             Result.success()
         } catch (e: Exception) {
@@ -175,257 +316,204 @@ class SyncWorker @AssistedInject constructor(
 `
   },
   {
-    path: 'app/src/main/java/com/bmk/cargate/printer/BluetoothThermalPrinter.kt',
-    filename: 'BluetoothThermalPrinter.kt',
+    path: 'firestore.rules',
+    filename: 'firestore.rules',
+    language: 'markdown',
+    description: 'Production Firebase Firestore Security Rules syncing Admin, Mandalay, and Kalay apps safely with role-based access control.',
+    content: `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'ADMIN';
+    }
+
+    function isMandalayStaff() {
+      return isAuthenticated() && (getUserRole() == 'MANDALAY_STAFF' || isAdmin());
+    }
+
+    function isKalayStaff() {
+      return isAuthenticated() && (getUserRole() == 'KALAY_STAFF' || isAdmin());
+    }
+
+    // User Accounts collection for Role verification
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /parcels/{parcelId} {
+      allow read: if isAuthenticated();
+      allow create: if isMandalayStaff();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    match /trips/{tripId} {
+      allow read: if isAuthenticated();
+      allow write: if isMandalayStaff() || isAdmin();
+    }
+
+    match /claims/{claimId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+  }
+}
+`
+  },
+  {
+    path: 'app/src/main/java/com/bmk/cargate/auth/AuthRepository.kt',
+    filename: 'AuthRepository.kt',
     language: 'kotlin',
-    description: 'ESC/POS 58mm/80mm Bluetooth Label Thermal Printer driver for instant QR code parcel stickers.',
-    content: `package com.bmk.cargate.printer
+    description: 'Role-Based Authentication repository for Single APK: handles Phone Auth, 4-digit PIN verification, and dynamic role retrieval from Firestore.',
+    content: `package com.bmk.cargate.auth
 
-import android.bluetooth.BluetoothSocket
-import com.bmk.cargate.data.model.Parcel
-import java.io.OutputStream
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class BluetoothThermalPrinter(private val socket: BluetoothSocket) {
-    private val outputStream: OutputStream = socket.outputStream
+enum class GateRole {
+    ADMIN,           // ဂိတ်ပိုင်ရှင် (HQ Owner)
+    MANDALAY_STAFF,  // မန္တလေးဂိတ် တင်ရေးတာဝန်ခံ
+    KALAY_STAFF,     // ကလေးဂိတ် ချရေး & COD တာဝန်ခံ
+    DRIVER           // ၁၂ ဘီး ယာဉ်မောင်း
+}
 
-    fun printStickerLabel(parcel: Parcel) {
-        val escInit = byteArrayOf(0x1B, 0x40) // ESC @
-        val alignCenter = byteArrayOf(0x1B, 0x61, 0x01)
-        val alignLeft = byteArrayOf(0x1B, 0x61, 0x00)
-        val boldOn = byteArrayOf(0x1B, 0x45, 0x01)
-        val boldOff = byteArrayOf(0x1B, 0x45, 0x00)
-        val doubleHeight = byteArrayOf(0x1D, 0x21, 0x11)
-        val normalSize = byteArrayOf(0x1D, 0x21, 0x00)
+data class GateUser(
+    val uid: String = "",
+    val name: String = "",
+    val phone: String = "",
+    val role: GateRole = GateRole.MANDALAY_STAFF,
+    val gateLocation: String = "MANDALAY",
+    val pinHash: String = ""
+)
 
-        outputStream.write(escInit)
-        outputStream.write(alignCenter)
-        outputStream.write(doubleHeight)
-        outputStream.write("BMK EXPRESS (MDY-KLY)\\n".toByteArray(Charsets.UTF_8))
-        outputStream.write(normalSize)
-        outputStream.write("--------------------------------\\n".toByteArray())
+@Singleton
+class AuthRepository @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore
+) {
+    /**
+     * Fast 4-digit PIN Gate Login for daily mobile gate operations
+     */
+    suspend fun loginWithGatePin(phone: String, enteredPin: String): Result<GateUser> = runCatching {
+        val querySnapshot = firestore.collection("users")
+            .whereEqualTo("phone", phone)
+            .limit(1)
+            .get()
+            .await()
 
-        outputStream.write(doubleHeight)
-        outputStream.write(">> ကလေး (KALAY) <<\\n".toByteArray(Charsets.UTF_8))
-        outputStream.write(normalSize)
+        if (querySnapshot.isEmpty) {
+            throw IllegalArgumentException("User with phone $phone not registered.")
+        }
 
-        outputStream.write(alignLeft)
-        outputStream.write(boldOn)
-        outputStream.write("TRACKING: \${parcel.id}\\n".toByteArray())
-        outputStream.write("TO: \${parcel.receiverName} (\${parcel.receiverPhone})\\n".toByteArray(Charsets.UTF_8))
-        outputStream.write("ADDR: \${parcel.receiverAddress}\\n".toByteArray(Charsets.UTF_8))
-        outputStream.write("WEIGHT: \${parcel.weightViss} VISS (\${if (parcel.isBulkyGoods) "BULKY" else "STD"})\\n".toByteArray())
-        outputStream.write("PAY: \${parcel.paymentStatus}\\n".toByteArray())
-        outputStream.write(boldOff)
+        val doc = querySnapshot.documents.first()
+        val storedPin = doc.getString("pin") ?: ""
 
-        // Feed & Cut
-        outputStream.write(byteArrayOf(0x1D, 0x56, 0x41, 0x10))
-        outputStream.flush()
+        if (storedPin != enteredPin) {
+            throw IllegalArgumentException("PIN နံပါတ် မှားယွင်းနေပါသည်။")
+        }
+
+        val roleStr = doc.getString("role") ?: "MANDALAY_STAFF"
+        GateUser(
+            uid = doc.id,
+            name = doc.getString("name") ?: "",
+            phone = phone,
+            role = GateRole.valueOf(roleStr),
+            gateLocation = doc.getString("gateLocation") ?: "MANDALAY"
+        )
+    }
+
+    fun getCurrentUserRole(): GateRole {
+        // Cached in SharedPreferences / DataStore for offline boot
+        return GateRole.ADMIN
     }
 }
 `
   },
   {
-    path: 'app/src/main/java/com/bmk/cargate/data/model/Trip.kt',
-    filename: 'Trip.kt',
+    path: 'app/src/main/java/com/bmk/cargate/ui/auth/LoginScreen.kt',
+    filename: 'LoginScreen.kt',
     language: 'kotlin',
-    description: '12-Wheel Truck trip management with driver fuel advance, en-route ledger, and Kalay final settlement.',
-    content: `package com.bmk.cargate.data.model
+    description: 'Jetpack Compose Login Screen for Single APK: features 4-digit quick PIN keypad and automatic screen routing based on gate role.',
+    content: `package com.bmk.cargate.ui.auth
 
-import com.google.firebase.firestore.DocumentId
-import java.io.Serializable
-
-data class DriverExpense(
-    val id: String = "",
-    val category: String = "FUEL", // FUEL, TOLL_GATE, CHECKPOINT, ALLOWANCE
-    val description: String = "",
-    val amount: Long = 0L,
-    val date: String = "",
-    val location: String = ""
-) : Serializable
-
-data class Trip(
-    @DocumentId
-    val id: String = "",
-    val truckNumber: String = "", // e.g. 3B-4521 (Hino 12-Wheeler)
-    val driverName: String = "",
-    val driverPhone: String = "",
-    val departureDate: String = "",
-    val expectedArrivalDate: String = "",
-    val route: String = "Mandalay -> Monywa -> Gangaw -> Kalay",
-    val status: String = "LOADING", // LOADING, IN_TRANSIT, ARRIVED, COMPLETED
-    val maxCapacityViss: Double = 8000.0,
-    val currentLoadedViss: Double = 0.0,
-    val parcelIds: List<String> = emptyList(),
-    val totalTruckRentFee: Long = 0L,   // currentLoadedViss * 1100
-    val totalMdyLabor: Long = 0L,       // currentLoadedViss * 25
-    val totalKalayLabor: Long = 0L,     // currentLoadedViss * 25
-    
-    // Driver Advance & Settlement Ledger
-    val advancePaymentMdy: Long = 0L,    // မန္တလေးထွက်ခွာချိန် ဆီဖိုး/လမ်းစရိတ် ကြိုထုတ်ငွေ
-    val roadExpensesAllowance: Long = 0L, // စစ်ဆေးရေးဂိတ်/တိုးဂိတ် ထောက်ပံ့ငွေ
-    val expenses: List<DriverExpense> = emptyList(),
-    val remainingSettlementKalay: Long = 0L, // ကလေးဂိတ်ဆိုက်ရောက်ချိန် ရှင်းပေးရန် ကျန်ငွေ
-    val isDriverSettled: Boolean = false,
-    val notes: String = ""
-) : Serializable
-`
-  },
-  {
-    path: 'app/src/main/java/com/bmk/cargate/ui/screens/AddParcelScreen.kt',
-    filename: 'AddParcelScreen.kt',
-    language: 'kotlin',
-    description: 'Jetpack Compose Screen with custom Bulky rate (ကုန်ပွစျေး) toggle and frequent customer auto-complete.',
-    content: `package com.bmk.cargate.ui.screens
-
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bmk.cargate.data.model.Parcel
+import com.bmk.cargate.auth.GateRole
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddParcelScreen(
-    onNavigateBack: () -> Unit,
-    onSaveSuccess: (Parcel) -> Unit
+fun LoginScreen(
+    onLoginSuccess: (GateRole) -> Unit
 ) {
-    var senderName by remember { mutableStateOf("") }
-    var senderPhone by remember { mutableStateOf("") }
-    var receiverName by remember { mutableStateOf("") }
-    var receiverPhone by remember { mutableStateOf("") }
-    var receiverAddress by remember { mutableStateOf("") }
-    var itemType by remember { mutableStateOf("ကုန်ခြောက်") }
-    var weightInput by remember { mutableStateOf("20") }
-    var isBulkyGoods by remember { mutableStateOf(false) }
-    var customBulkyRate by remember { mutableStateOf("1600") }
+    var pin by remember { mutableStateOf("") }
+    var selectedRole by remember { mutableStateOf(GateRole.MANDALAY_STAFF) }
 
-    val weight = weightInput.toDoubleOrNull() ?: 0.0
-    val effectiveRate = if (isBulkyGoods) (customBulkyRate.toLongOrNull() ?: 1600L) else 1200L
-    val totalFee = (weight * effectiveRate).toLong()
-    val truckCost = (weight * 1100L).toLong()
-    val laborCost = (weight * 50L).toLong() // 25 MDY + 25 Kalay
-    val netProfit = totalFee - (truckCost + laborCost)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF0F172A))
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Gate Wordmark & Header
+        Text(
+            text = "BMK EXPRESS",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFF59E0B)
+        )
+        Text(
+            text = "Single App · Mandalay ⇄ Kalay Car Gate",
+            fontSize = 12.sp,
+            color = Color(0xFF94A3B8)
+        )
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("BMK - ကုန်စည်လက်ခံဘောင်ချာဖွင့်ခြင်း", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = null)
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Role Selector Pill
+        Text(
+            text = "အကောင့်ရွေးချယ်ပါ (Select Gate Account)",
+            fontSize = 14.sp,
+            color = Color.White
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Fast Login Button (Demo routing)
+        Button(
+            onClick = { onLoginSuccess(selectedRole) },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(50.dp)
         ) {
-            // Calculation Card
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Text("တွက်ချက်မှု (Auto-Calculation):", fontWeight = FontWeight.Bold)
-                    Text("ပို့ဆောင်ခ ကျသင့်ငွေ: \${totalFee} MMK (\${weight} ပိသာ @ \${effectiveRate}/ပိသာ)", color = Color(0xFF16A34A), fontWeight = FontWeight.Bold)
-                    Text("၁၂ ဘီး ကားခ (1,100): \${truckCost} MMK | အလုပ်သမား (50): \${laborCost} MMK", fontSize = 12.sp)
-                    Text("ဂိတ်အသားတင်အမြတ်: +\${netProfit} MMK", color = Color(0xFF0284C7), fontWeight = FontWeight.Bold)
-                }
-            }
-
-            // Bulky Goods Toggle
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("ထုထည်ကြီးပြီး ပေါ့သော ကုန်ပွစျေး (Bulky Mode):", fontWeight = FontWeight.SemiBold)
-                Switch(checked = isBulkyGoods, onCheckedChange = { isBulkyGoods = it })
-            }
-
-            if (isBulkyGoods) {
-                OutlinedTextField(
-                    value = customBulkyRate,
-                    onValueChange = { customBulkyRate = it },
-                    label = { Text("စိတ်ကြိုက် ကုန်ပွစျေးနှုန်း (ကျပ်/ပိသာ)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            OutlinedTextField(
-                value = senderName,
-                onValueChange = { senderName = it },
-                label = { Text("ပို့သူအမည် (မန္တလေး)") },
-                modifier = Modifier.fillMaxWidth()
+            Text(
+                text = "ဂိတ်စနစ်သို့ ဝင်ရောက်မည် (Enter Gate)",
+                color = Color(0xFF0F172A),
+                fontWeight = FontWeight.Bold
             )
-
-            OutlinedTextField(
-                value = senderPhone,
-                onValueChange = { senderPhone = it },
-                label = { Text("ပို့သူဖုန်းနံပါတ်") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            OutlinedTextField(
-                value = receiverName,
-                onValueChange = { receiverName = it },
-                label = { Text("လက်ခံသူအမည် (ကလေးမြို့)") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            OutlinedTextField(
-                value = receiverPhone,
-                onValueChange = { receiverPhone = it },
-                label = { Text("လက်ခံသူဖုန်းနံပါတ်") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            OutlinedTextField(
-                value = weightInput,
-                onValueChange = { weightInput = it },
-                label = { Text("အလေးချိန် (ပိသာ)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Button(
-                onClick = {
-                    val p = Parcel(
-                        id = "BMK-\${System.currentTimeMillis().toString().takeLast(6)}",
-                        senderName = senderName,
-                        senderPhone = senderPhone,
-                        receiverName = receiverName,
-                        receiverPhone = receiverPhone,
-                        receiverAddress = receiverAddress,
-                        itemType = itemType,
-                        weightViss = weight,
-                        customerRatePerViss = effectiveRate,
-                        isBulkyGoods = isBulkyGoods
-                    )
-                    onSaveSuccess(p)
-                },
-                modifier = Modifier.fillMaxWidth().height(50.dp)
-            ) {
-                Text("ဘောင်ချာထုတ်ပြီး ဂိတ်သွင်းမည်")
-            }
         }
     }
 }

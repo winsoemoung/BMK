@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Parcel } from '../types/bmk';
-import { formatMMK, generateQrDataUrl, generateViberReceiptText, generateSmsReceiptText, getStatusBurmese } from '../utils/formatters';
+import { Parcel, WeightUnit } from '../types/bmk';
+import { formatMMK, formatNumber, rateVissToKg, vissToKg, generateQrDataUrl, generateViberReceiptText, generateSmsReceiptText, getStatusBurmese } from '../utils/formatters';
 import { X, Copy, Check, Printer, Share2, MessageSquare, Bluetooth, Tag, Receipt } from 'lucide-react';
 
 interface DigitalReceiptModalProps {
   parcel: Parcel | null;
   onClose: () => void;
+  weightUnit?: WeightUnit;
   lang: 'my' | 'en';
 }
 
 export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
   parcel,
   onClose,
+  weightUnit = 'VISS',
   lang,
 }) => {
   if (!parcel) return null;
@@ -22,6 +24,9 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
   const [copiedSms, setCopiedSms] = useState(false);
   const [isBluetoothConnecting, setIsBluetoothConnecting] = useState(false);
   const [bluetoothSuccess, setBluetoothSuccess] = useState(false);
+
+  const weightInKg = vissToKg(parcel.weightViss);
+  const rateInKg = rateVissToKg(parcel.customerRatePerViss);
 
   useEffect(() => {
     let isMounted = true;
@@ -34,7 +39,7 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
   }, [parcel]);
 
   const handleCopyViber = () => {
-    const text = generateViberReceiptText(parcel);
+    const text = generateViberReceiptText(parcel, weightUnit);
     navigator.clipboard.writeText(text);
     setCopiedViber(true);
     setTimeout(() => setCopiedViber(false), 2500);
@@ -53,7 +58,6 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
 
   const handlePrintBluetoothThermal = () => {
     setIsBluetoothConnecting(true);
-    // Simulate Bluetooth POS 58mm/80mm connection & sending ESC/POS raw bytes
     setTimeout(() => {
       setIsBluetoothConnecting(false);
       setBluetoothSuccess(true);
@@ -186,7 +190,7 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
                 </div>
               </div>
 
-              {/* Cargo Details & Rate */}
+              {/* Cargo Details with Dual Unit (Viss + Kg) */}
               <div className="space-y-1.5 border-b border-dashed border-slate-300 pb-3">
                 <div className="flex justify-between">
                   <span className="text-slate-600">ကုန်ပစ္စည်း:</span>
@@ -205,11 +209,15 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">အလေးချိန်:</span>
-                  <span className="font-bold font-mono text-slate-900">{parcel.weightViss} ပိသာ</span>
+                  <span className="font-bold font-mono text-slate-900">
+                    {formatNumber(parcel.weightViss, 1)} ပိဿာ (~ {formatNumber(weightInKg, 1)} Kg)
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">နှုန်းထား:</span>
-                  <span className="font-mono text-slate-700">{parcel.customerRatePerViss} MMK / ပိသာ</span>
+                  <span className="font-mono text-slate-700">
+                    {formatNumber(parcel.customerRatePerViss)} MMK/ပိဿာ (~ {formatNumber(rateInKg, 1)} MMK/Kg)
+                  </span>
                 </div>
               </div>
 
@@ -261,9 +269,12 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
                   <span className="text-[10px] block truncate">{parcel.receiverAddress}</span>
                 </div>
 
-                {/* Weight & Bulky details */}
+                {/* Dual Weight in Sticker */}
                 <div className="border-t-2 border-slate-950 pt-1 flex justify-between items-center">
-                  <span className="font-bold text-sm">{parcel.weightViss} ပိသာ</span>
+                  <div>
+                    <span className="font-black text-sm block">{parcel.weightViss} VISS</span>
+                    <span className="text-[10px] text-slate-600 block">(~ {formatNumber(weightInKg, 1)} KG)</span>
+                  </div>
                   <span className="text-[11px] font-bold">
                     {parcel.isBulkyGoods ? '📦 ကုန်ပွ' : `${parcel.packageCount} ထုပ်`}
                   </span>

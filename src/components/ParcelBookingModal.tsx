@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { Parcel, Trip, BMK_PRICING, PaymentStatus, FrequentCustomer } from '../types/bmk';
+import { Parcel, Trip, GatePricingConfig, PaymentStatus, FrequentCustomer, WeightUnit, VISS_TO_KG_RATIO, KG_TO_VISS_RATIO } from '../types/bmk';
 import { FREQUENT_CUSTOMERS } from '../data/mockData';
-import { formatMMK, formatNumber } from '../utils/formatters';
-import { X, Check, Calculator, Sparkles, Box, Phone, MapPin, User } from 'lucide-react';
+import { formatMMK, formatNumber, rateVissToKg, vissToKg, kgToViss } from '../utils/formatters';
+import { X, Check, Calculator, Sparkles, Box, Phone, MapPin, User, Scale } from 'lucide-react';
 
 interface ParcelBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onBookParcel: (parcel: Parcel) => void;
   trips: Trip[];
+  pricingConfig: GatePricingConfig;
+  defaultWeightUnit: WeightUnit;
   lang: 'my' | 'en';
 }
 
@@ -17,9 +19,13 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
   onClose,
   onBookParcel,
   trips,
+  pricingConfig,
+  defaultWeightUnit,
   lang,
 }) => {
   if (!isOpen) return null;
+
+  const [inputUnit, setInputUnit] = useState<WeightUnit>(defaultWeightUnit);
 
   const [senderName, setSenderName] = useState('');
   const [senderPhone, setSenderPhone] = useState('');
@@ -32,34 +38,44 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
   const [itemType, setItemType] = useState('ကုန်ခြောက် / စားသောက်ကုန်');
   const [itemDescription, setItemDescription] = useState('');
   const [packageCount, setPackageCount] = useState(1);
-  const [weightInput, setWeightInput] = useState('20');
+
+  // Weight input in current selected unit
+  const [weightInputValue, setWeightInputValue] = useState(inputUnit === 'KG' ? '32.6' : '20');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('PAID');
   const [selectedTripId, setSelectedTripId] = useState(trips[0]?.id || '');
   const [notes, setNotes] = useState('');
 
-  // Upgrade: Bulky Goods Rate (ကုန်ပွစျေး)
+  // Bulky Goods Rate (ကုန်ပွစျေး)
   const [isBulkyGoods, setIsBulkyGoods] = useState(false);
-  const [customBulkyRate, setCustomBulkyRate] = useState<string>('1600');
+  const [customBulkyRate, setCustomBulkyRate] = useState<string>(pricingConfig.defaultBulkyRate.toString());
   const [bulkyNote, setBulkyNote] = useState('');
 
   // Auto-complete suggestion state
   const [showSenderSuggestions, setShowSenderSuggestions] = useState(false);
   const [showReceiverSuggestions, setShowReceiverSuggestions] = useState(false);
 
-  // Calculations
-  const weightViss = Math.max(0.1, parseFloat(weightInput) || 0);
-  const effectiveRate = isBulkyGoods
-    ? (parseFloat(customBulkyRate) || BMK_PRICING.DEFAULT_BULKY_RATE)
-    : BMK_PRICING.CUSTOMER_RATE_PER_VISS;
+  // Parse raw input number
+  const parsedInput = Math.max(0.1, parseFloat(weightInputValue) || 0);
 
-  const totalCustomerFee = weightViss * effectiveRate;
-  const truckExpense = weightViss * BMK_PRICING.TRUCK_RATE_PER_VISS;
-  const mdyLabor = weightViss * BMK_PRICING.MDY_LABOR_PER_VISS;
-  const kalayLabor = weightViss * BMK_PRICING.KALAY_LABOR_PER_VISS;
-  // Net Profit: Revenue - (Truck 1100 + MDY labor 25 + Kalay labor 25)
+  // Normalized weight in Viss & Kg
+  const weightViss = inputUnit === 'KG' ? kgToViss(parsedInput) : parsedInput;
+  const weightKg = inputUnit === 'KG' ? parsedInput : vissToKg(parsedInput);
+
+  // Effective rate per viss
+  const effectiveRatePerViss = isBulkyGoods
+    ? (parseFloat(customBulkyRate) || pricingConfig.defaultBulkyRate)
+    : pricingConfig.customerRatePerViss;
+
+  // Effective rate per kg
+  const effectiveRatePerKg = rateVissToKg(effectiveRatePerViss);
+
+  const totalCustomerFee = weightViss * effectiveRatePerViss;
+  const truckExpense = weightViss * pricingConfig.truckRatePerViss;
+  const mdyLabor = weightViss * pricingConfig.mdyLaborPerViss;
+  const kalayLabor = weightViss * pricingConfig.kalayLaborPerViss;
   const baseProfit = totalCustomerFee - (truckExpense + mdyLabor + kalayLabor);
 
-  // Smart suggestions
+  // Suggestions
   const senderSuggestions = FREQUENT_CUSTOMERS.filter(
     (c) =>
       c.city === 'MANDALAY' &&
@@ -87,6 +103,20 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
     setShowReceiverSuggestions(false);
   };
 
+  const handleToggleUnit = (newUnit: WeightUnit) => {
+    if (newUnit === inputUnit) return;
+    if (newUnit === 'KG') {
+      // Switching from Viss to Kg
+      const inKg = vissToKg(parsedInput);
+      setWeightInputValue(formatNumber(inKg, 1));
+    } else {
+      // Switching from Kg to Viss
+      const inViss = kgToViss(parsedInput);
+      setWeightInputValue(formatNumber(inViss, 1));
+    }
+    setInputUnit(newUnit);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!senderName.trim() || !receiverName.trim() || weightViss <= 0) return;
@@ -97,7 +127,7 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
 
     const newParcel: Parcel = {
       id: newId,
-      qrCode: `${newId}|MDY-KLY|${weightViss}VISS${isBulkyGoods ? '|BULKY' : ''}`,
+      qrCode: `${newId}|MDY-KLY|${formatNumber(weightViss, 1)}VISS${isBulkyGoods ? '|BULKY' : ''}`,
       senderName,
       senderPhone,
       senderAddress,
@@ -107,8 +137,8 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
       itemType,
       itemDescription: itemDescription || `${itemType} (${packageCount} ထုပ်)`,
       packageCount,
-      weightViss,
-      customerRatePerViss: effectiveRate,
+      weightViss: parseFloat(weightViss.toFixed(2)),
+      customerRatePerViss: effectiveRatePerViss,
       isBulkyGoods,
       bulkyNote: isBulkyGoods ? (bulkyNote || 'ကုန်ပွစျေး သတ်မှတ်ထားသည်') : undefined,
       totalDeliveryFee: totalCustomerFee,
@@ -144,8 +174,8 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
             </h2>
             <span className="text-xs text-slate-400">
               {lang === 'my'
-                ? 'စမတ်အကြံပြုချက် (Auto-fill) နှင့် ကုန်ပွစျေး စိတ်ကြိုက်သတ်မှတ်စနစ်'
-                : 'Smart Auto-Complete & Custom Bulky Goods Pricing'}
+                ? 'ပိဿာ / Kg နှစ်သက်ရာဖြင့် ရိုက်ထည့်တွက်ချက်နိုင်သည်'
+                : 'Enter weight in Viss or Kg with real-time conversion'}
             </span>
           </div>
           <button
@@ -158,26 +188,31 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
-          {/* Real-time Calculation Sticky Banner */}
+          {/* Real-time Calculation Sticky Banner with Viss & Kg Rates */}
           <div className="p-4 rounded-xl bg-slate-950 border border-amber-500/40 space-y-2.5">
             <div className="flex items-center justify-between text-xs">
               <span className="text-amber-400 font-semibold flex items-center gap-1.5">
                 <Calculator className="w-3.5 h-3.5" />
                 <span>
                   {isBulkyGoods
-                    ? (lang === 'my' ? 'ကုန်ပွစျေးနှုန်း တွက်ချက်မှု (Bulky Rate Applied)' : 'Bulky Rate Calculation')
-                    : (lang === 'my' ? 'စံနှုန်းထား တွက်ချက်မှု (Standard 1,200/Viss)' : 'Standard Calculation')}
+                    ? (lang === 'my' ? 'ကုန်ပွစျေးနှုန်း တွက်ချက်မှု (Bulky Rate)' : 'Bulky Rate')
+                    : (lang === 'my' ? 'စံနှုန်းထား တွက်ချက်မှု' : 'Standard Rate')}
                 </span>
               </span>
               <span className="text-slate-300 font-mono font-bold">
-                {weightViss} ပိသာ @ {formatNumber(effectiveRate)} MMK/ပိသာ
+                {formatNumber(weightViss, 1)} ပိဿာ (~ {formatNumber(weightKg, 1)} Kg)
               </span>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-300">
-                {lang === 'my' ? 'လူကြီးမင်း ပေးဆောင်ရမည့် ပို့ဆောင်ခ စုစုပေါင်း:' : 'Total Customer Charge:'}
-              </span>
+              <div>
+                <span className="text-xs text-slate-400 block">
+                  {lang === 'my' ? 'လူကြီးမင်း ပေးဆောင်ရမည့် ပို့ဆောင်ခ စုစုပေါင်း:' : 'Total Customer Charge:'}
+                </span>
+                <span className="text-[11px] text-slate-500 font-mono">
+                  {formatNumber(effectiveRatePerViss)} ကျပ်/ပိဿာ (~ {formatNumber(effectiveRatePerKg, 1)} ကျပ်/Kg)
+                </span>
+              </div>
               <span className="text-xl font-bold font-mono text-emerald-400">
                 {formatMMK(totalCustomerFee)}
               </span>
@@ -185,11 +220,11 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
 
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800 text-xs">
               <div className="text-slate-400">
-                <span>၁၂ ဘီးကားခ (1,100):</span>
+                <span>၁၂ ဘီးကားခ ({pricingConfig.truckRatePerViss}):</span>
                 <span className="block font-mono text-slate-200 mt-0.5">{formatMMK(truckExpense)}</span>
               </div>
               <div className="text-slate-400">
-                <span>အလုပ်သမား (25+25):</span>
+                <span>အလုပ်သမား ({pricingConfig.mdyLaborPerViss}+{pricingConfig.kalayLaborPerViss}):</span>
                 <span className="block font-mono text-slate-200 mt-0.5">{formatMMK(mdyLabor + kalayLabor)}</span>
               </div>
               <div className="text-amber-400">
@@ -199,26 +234,55 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
             </div>
           </div>
 
-          {/* Section 1: Weight & Bulky Goods Feature (ကုန်ပွစျေး) */}
+          {/* Section 1: Weight Input (Viss vs Kg selector) & Bulky Goods Feature */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
-                {lang === 'my' ? '၁။ ကုန်စည်အမျိုးအစားနှင့် အလေးချိန် (ပိသာ)' : '1. Item Category & Weight'}
+                {lang === 'my' ? '၁။ အလေးချိန် (ပိဿာ / ကီလို) နှင့် ကုန်စည်' : '1. Weight Unit & Item Category'}
               </label>
 
-              {/* Bulky Goods Toggle Button */}
-              <button
-                type="button"
-                onClick={() => setIsBulkyGoods(!isBulkyGoods)}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all border ${
-                  isBulkyGoods
-                    ? 'bg-purple-900/60 text-purple-200 border-purple-500'
-                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
-                }`}
-              >
-                <Box className="w-3.5 h-3.5 text-purple-400" />
-                <span>{lang === 'my' ? '📦 ကုန်ပွစျေး သတ်မှတ်မည်' : 'Bulky Goods Mode'}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Weight Unit Toggle for input */}
+                <div className="inline-flex rounded-lg bg-slate-950 border border-slate-700 p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleUnit('VISS')}
+                    className={`px-2.5 py-1 rounded font-semibold transition-colors flex items-center gap-1 ${
+                      inputUnit === 'VISS'
+                        ? 'bg-amber-400 text-slate-950'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Scale className="w-3 h-3" />
+                    <span>ပိဿာ (Viss)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleUnit('KG')}
+                    className={`px-2.5 py-1 rounded font-semibold transition-colors flex items-center gap-1 ${
+                      inputUnit === 'KG'
+                        ? 'bg-amber-400 text-slate-950'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <span>ကီလို (Kg)</span>
+                  </button>
+                </div>
+
+                {/* Bulky Goods Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIsBulkyGoods(!isBulkyGoods)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
+                    isBulkyGoods
+                      ? 'bg-purple-900/60 text-purple-200 border-purple-500'
+                      : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
+                  }`}
+                >
+                  <Box className="w-3.5 h-3.5 text-purple-400" />
+                  <span>{lang === 'my' ? 'ကုန်ပွစျေး' : 'Bulky Mode'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Bulky Goods Custom Pricing Strip */}
@@ -231,27 +295,24 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
                       ? 'ထုထည်ကြီးပြီး ပေါ့သော ပစ္စည်း (ကုန်ပွစျေး စိတ်ကြိုက်သတ်မှတ်ရန်)'
                       : 'Volumetric / Bulky Goods Custom Rate'}
                   </span>
-                  <span className="text-[11px] text-purple-400">
-                    {lang === 'my' ? 'ပုံမှန် ၁,၂၀၀ ထက် တိုး၍ကောက်နိုင်သည်' : 'Higher rate for space-consuming items'}
+                  <span className="text-[11px] font-mono text-purple-300">
+                    ~ {formatNumber(rateVissToKg(parseFloat(customBulkyRate) || 0), 1)} ကျပ်/Kg
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div>
                     <label className="text-slate-300 block mb-1">
-                      {lang === 'my' ? 'စိတ်ကြိုက်နှုန်းထား (ကျပ် / ပိသာ)' : 'Custom Rate (MMK / Viss)'}
+                      {lang === 'my' ? 'စိတ်ကြိုက်နှုန်းထား (ကျပ် / ပိဿာ)' : 'Custom Rate (MMK / Viss)'}
                     </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min="1200"
-                        step="100"
-                        value={customBulkyRate}
-                        onChange={(e) => setCustomBulkyRate(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-950 border border-purple-500/60 rounded-lg text-white font-mono font-bold focus:outline-none"
-                      />
-                      <span className="absolute right-3 top-2 text-xs text-purple-400">MMK / ပိသာ</span>
-                    </div>
+                    <input
+                      type="number"
+                      min="1000"
+                      step="50"
+                      value={customBulkyRate}
+                      onChange={(e) => setCustomBulkyRate(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-purple-500/60 rounded-lg text-white font-mono font-bold focus:outline-none"
+                    />
                   </div>
 
                   <div>
@@ -271,22 +332,31 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Weight Input */}
               <div>
-                <label className="text-xs text-slate-400 block mb-1">
-                  {lang === 'my' ? 'အလေးချိန် (ပိသာ) *' : 'Weight in Viss *'}
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs text-slate-400">
+                    {lang === 'my' ? 'အလေးချိန်' : 'Weight'} ({inputUnit === 'KG' ? 'Kg' : 'ပိဿာ'}) *
+                  </label>
+                  <span className="text-[11px] font-mono text-amber-400">
+                    {inputUnit === 'KG'
+                      ? `~ ${formatNumber(weightViss, 1)} ပိဿာ`
+                      : `~ ${formatNumber(weightKg, 1)} Kg`}
+                  </span>
+                </div>
                 <div className="relative">
                   <input
                     type="number"
-                    step="0.5"
-                    min="0.5"
+                    step="0.1"
+                    min="0.1"
                     required
-                    value={weightInput}
-                    onChange={(e) => setWeightInput(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono focus:border-amber-400 focus:outline-none"
-                    placeholder="20"
+                    value={weightInputValue}
+                    onChange={(e) => setWeightInputValue(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono font-bold focus:border-amber-400 focus:outline-none"
                   />
-                  <span className="absolute right-3 top-2 text-xs font-bold text-slate-400">ပိသာ</span>
+                  <span className="absolute right-3 top-2 text-xs font-bold text-slate-400">
+                    {inputUnit === 'KG' ? 'Kg' : 'ပိဿာ'}
+                  </span>
                 </div>
               </div>
 
@@ -345,7 +415,7 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
               </label>
               <span className="text-[11px] text-amber-400/80 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" />
-                <span>{lang === 'my' ? 'အမြဲပို့နေကျ ဖောက်သည် အလိုအလျောက်ဖြည့်' : 'Smart Auto-fill'}</span>
+                <span>{lang === 'my' ? 'ဖောက်သည် အလိုအလျောက်ဖြည့်' : 'Smart Auto-fill'}</span>
               </span>
             </div>
 
@@ -392,11 +462,11 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
                 </div>
               </div>
 
-              {/* Sender Auto-Complete Dropdown */}
+              {/* Sender Suggestions */}
               {showSenderSuggestions && senderSuggestions.length > 0 && (
                 <div className="absolute top-[68px] left-0 right-0 z-20 bg-slate-950 border border-amber-500/50 rounded-xl shadow-2xl p-1.5 space-y-1">
                   <span className="text-[10px] text-amber-400 font-semibold px-2 block">
-                    {lang === 'my' ? 'အမြဲပို့နေကျ ဖောက်သည်များ (ကလစ်နှိပ်ပါ):' : 'Frequent Senders (Click to fill):'}
+                    {lang === 'my' ? 'အမြဲပို့နေကျ ဖောက်သည်များ:' : 'Frequent Senders:'}
                   </span>
                   {senderSuggestions.map((cust) => (
                     <button
@@ -484,7 +554,7 @@ export const ParcelBookingModal: React.FC<ParcelBookingModalProps> = ({
                 </div>
               </div>
 
-              {/* Receiver Auto-Complete Dropdown */}
+              {/* Receiver Suggestions */}
               {showReceiverSuggestions && receiverSuggestions.length > 0 && (
                 <div className="absolute top-[68px] left-0 right-0 z-20 bg-slate-950 border border-amber-500/50 rounded-xl shadow-2xl p-1.5 space-y-1">
                   <span className="text-[10px] text-amber-400 font-semibold px-2 block">
