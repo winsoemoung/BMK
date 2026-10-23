@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Parcel, Trip, Claim, UserRole, ParcelStatus, ClaimStatus, TripStatus } from './types/bmk';
+import { Parcel, Trip, Claim, UserRole, ParcelStatus, ClaimStatus, TripStatus, DriverExpenseEntry } from './types/bmk';
 import { INITIAL_PARCELS, INITIAL_TRIPS, INITIAL_CLAIMS } from './data/mockData';
 import { Header } from './components/Header';
 import { FinancialDashboard } from './components/FinancialDashboard';
@@ -84,13 +84,15 @@ export default function App() {
         prevTrips.map((t) => {
           if (t.id === newParcel.tripId) {
             const updatedLoaded = t.currentLoadedViss + newParcel.weightViss;
+            const updatedRent = updatedLoaded * 1100;
             return {
               ...t,
               currentLoadedViss: updatedLoaded,
               parcelIds: [...t.parcelIds, newParcel.id],
-              totalTruckRentFee: updatedLoaded * 1100,
+              totalTruckRentFee: updatedRent,
               totalMdyLabor: updatedLoaded * 25,
               totalKalayLabor: updatedLoaded * 25,
+              remainingSettlementKalay: Math.max(0, updatedRent - t.advancePaymentMdy),
             };
           }
           return t;
@@ -98,13 +100,19 @@ export default function App() {
       );
     }
 
-    // Automatically open digital receipt for immediate Viber sharing
+    // Automatically open digital receipt for immediate Viber / Bluetooth sticker printing
     setSelectedParcelForReceipt(newParcel);
   };
 
   const handleUpdateParcelStatus = (parcelId: string, newStatus: ParcelStatus) => {
     setParcels((prev) =>
       prev.map((p) => (p.id === parcelId ? { ...p, status: newStatus, updatedAt: new Date().toISOString() } : p))
+    );
+  };
+
+  const handleBatchUpdateStatus = (parcelIds: string[], newStatus: ParcelStatus) => {
+    setParcels((prev) =>
+      prev.map((p) => (parcelIds.includes(p.id) ? { ...p, status: newStatus, updatedAt: new Date().toISOString() } : p))
     );
   };
 
@@ -128,6 +136,38 @@ export default function App() {
         prev.map((p) => (p.tripId === tripId && p.status === 'IN_TRANSIT' ? { ...p, status: 'ARRIVED_KALAY' } : p))
       );
     }
+  };
+
+  const handleUpdateTripSettlement = (tripId: string, advanceMdy: number, isSettled: boolean) => {
+    setTrips((prev) =>
+      prev.map((t) => {
+        if (t.id === tripId) {
+          return {
+            ...t,
+            advancePaymentMdy: advanceMdy,
+            isDriverSettled: isSettled,
+            driverSettledDate: isSettled ? new Date().toISOString() : undefined,
+            remainingSettlementKalay: isSettled ? 0 : Math.max(0, t.totalTruckRentFee - advanceMdy),
+          };
+        }
+        return t;
+      })
+    );
+  };
+
+  const handleAddTripExpense = (tripId: string, expense: DriverExpenseEntry) => {
+    setTrips((prev) =>
+      prev.map((t) => {
+        if (t.id === tripId) {
+          const currentExpenses = t.expenses || [];
+          return {
+            ...t,
+            expenses: [expense, ...currentExpenses],
+          };
+        }
+        return t;
+      })
+    );
   };
 
   // Claims handlers
@@ -217,6 +257,7 @@ export default function App() {
                     lang={lang}
                     onSelectParcelForReceipt={setSelectedParcelForReceipt}
                     onUpdateStatus={handleUpdateParcelStatus}
+                    onBatchUpdateStatus={handleBatchUpdateStatus}
                     onOpenClaimModal={handleOpenClaimModalFromParcel}
                     onOpenBookingModal={() => setIsBookingModalOpen(true)}
                   />
@@ -224,8 +265,11 @@ export default function App() {
                 {currentTab === 'trips' && (
                   <TripManagement
                     trips={trips}
+                    parcels={parcels}
                     onAddTrip={handleAddTrip}
                     onUpdateTripStatus={handleUpdateTripStatus}
+                    onUpdateTripSettlement={handleUpdateTripSettlement}
+                    onAddTripExpense={handleAddTripExpense}
                     userRole={userRole}
                     lang={lang}
                   />
@@ -271,6 +315,7 @@ export default function App() {
                 lang={lang}
                 onSelectParcelForReceipt={setSelectedParcelForReceipt}
                 onUpdateStatus={handleUpdateParcelStatus}
+                onBatchUpdateStatus={handleBatchUpdateStatus}
                 onOpenClaimModal={handleOpenClaimModalFromParcel}
                 onOpenBookingModal={() => setIsBookingModalOpen(true)}
               />
@@ -278,8 +323,11 @@ export default function App() {
             {currentTab === 'trips' && (
               <TripManagement
                 trips={trips}
+                parcels={parcels}
                 onAddTrip={handleAddTrip}
                 onUpdateTripStatus={handleUpdateTripStatus}
+                onUpdateTripSettlement={handleUpdateTripSettlement}
+                onAddTripExpense={handleAddTripExpense}
                 userRole={userRole}
                 lang={lang}
               />
@@ -309,7 +357,7 @@ export default function App() {
         lang={lang}
       />
 
-      {/* Digital Receipt Modal (Share to Viber / SMS / Print) */}
+      {/* Digital Receipt Modal (Share to Viber / SMS / Bluetooth Thermal Sticker) */}
       <DigitalReceiptModal
         parcel={selectedParcelForReceipt}
         onClose={() => setSelectedParcelForReceipt(null)}
@@ -319,8 +367,8 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-4 text-xs text-slate-500 text-center">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>BMK Delivery Car Gate (Mandalay ⇄ Kalay) Express Logistics System</span>
-          <span>Revenue: 1,200 MMK/viss · 12-Wheel Truck: 1,100 MMK · Labor: 50 MMK · Net: 50 MMK</span>
+          <span>BMK Express Car Gate (Mandalay ⇄ Kalay) Express Logistics System</span>
+          <span>Standard: 1,200 MMK/viss · Bulky (ကုန်ပွ): Custom Rate · 12-Wheel Truck: 1,100 MMK</span>
         </div>
       </footer>
     </div>

@@ -1,4 +1,71 @@
-import { Parcel, Trip, Claim, BMK_PRICING } from '../types/bmk';
+import { Parcel, Trip, Claim, FrequentCustomer, BMK_PRICING } from '../types/bmk';
+
+export const FREQUENT_CUSTOMERS: FrequentCustomer[] = [
+  {
+    id: 'CUST-001',
+    name: 'ဦးသန်းထွန်း (ရွှေစင်ကုန်မာ)',
+    phone: '09-450012345',
+    city: 'MANDALAY',
+    address: 'မန္တလေး၊ ၈၄ လမ်း၊ ၃၅x၃၆ ကြား၊ ချမ်းအေးသာစံ',
+    defaultItemType: 'ကုန်ခြောက် / စားသောက်ကုန်'
+  },
+  {
+    id: 'CUST-002',
+    name: 'မနီနီဝင်း (ဝင်းအထည်တိုက်)',
+    phone: '09-798889911',
+    city: 'MANDALAY',
+    address: 'မန္တလေး၊ ဇေးချိုတိုက်တန်း၊ အလယ်ရုံ',
+    defaultItemType: 'အထည်အလိပ် / ဖက်ရှင်'
+  },
+  {
+    id: 'CUST-003',
+    name: 'ဦးကျော်သူ (အောင်စက်ပစ္စည်း)',
+    phone: '09-970034567',
+    city: 'MANDALAY',
+    address: 'မန္တလေး၊ စက်မှုဇုန် (၁)၊ ၆၂ လမ်း',
+    defaultItemType: 'စက်ပစ္စည်း အပိုပစ္စည်း'
+  },
+  {
+    id: 'CUST-004',
+    name: 'ဒေါ်ခင်မျိုးနွယ် (နွယ်နွယ်ဆေးဆိုင်)',
+    phone: '09-443322110',
+    city: 'MANDALAY',
+    address: 'မန္တလေး၊ ၃၀ လမ်း၊ ၇၈x၇၉ ကြား',
+    defaultItemType: 'ဆေးဝါးနှင့် ကျန်းမာရေး'
+  },
+  {
+    id: 'CUST-005',
+    name: 'ဒေါ်အေးသီတာ (တာဟန်း ကုန်စုံ)',
+    phone: '09-256123456',
+    city: 'KALAY',
+    address: 'ကလေးမြို့၊ တာဟန်းရပ်ကွက်၊ ဗိုလ်ချုပ်လမ်းမကြီး',
+    defaultItemType: 'ကုန်ခြောက် / စားသောက်ကုန်'
+  },
+  {
+    id: 'CUST-006',
+    name: 'မဇင်မာဦး (ဖက်ရှင်ဆိုင်)',
+    phone: '09-400122334',
+    city: 'KALAY',
+    address: 'ကလေးမြို့၊ ပင်လုံရပ်ကွက်၊ စျေးကြီးအနီး',
+    defaultItemType: 'အထည်အလိပ် / ဖက်ရှင်'
+  },
+  {
+    id: 'CUST-007',
+    name: 'ကိုဟန်ဝင်း (ထွန်းစက်ပြင်ဝပ်ရှော့)',
+    phone: '09-698765432',
+    city: 'KALAY',
+    address: 'ကလေးမြို့၊ ချမ်းမြေ့အောင်စည်၊ ကားကြီးကွင်းလမ်း',
+    defaultItemType: 'စက်ပစ္စည်း အပိုပစ္စည်း'
+  },
+  {
+    id: 'CUST-008',
+    name: 'ဒေါက်တာဇင်မင်း (ကလေးကုသိုလ်ဖြစ်ဆေးခန်း)',
+    phone: '09-955667788',
+    city: 'KALAY',
+    address: 'ကလေးမြို့၊ ဆေးရုံကြီးအနီး၊ ဗိုလ်ချုပ်လမ်း',
+    defaultItemType: 'ဆေးဝါးနှင့် ကျန်းမာရေး'
+  }
+];
 
 export const INITIAL_PARCELS: Parcel[] = [
   {
@@ -15,6 +82,7 @@ export const INITIAL_PARCELS: Parcel[] = [
     packageCount: 10,
     weightViss: 120,
     customerRatePerViss: BMK_PRICING.CUSTOMER_RATE_PER_VISS,
+    isBulkyGoods: false,
     totalDeliveryFee: 120 * BMK_PRICING.CUSTOMER_RATE_PER_VISS, // 144,000 MMK
     paymentStatus: 'PAID',
     paymentCollectedAt: 'MANDALAY',
@@ -43,6 +111,7 @@ export const INITIAL_PARCELS: Parcel[] = [
     packageCount: 5,
     weightViss: 85,
     customerRatePerViss: BMK_PRICING.CUSTOMER_RATE_PER_VISS,
+    isBulkyGoods: false,
     totalDeliveryFee: 85 * BMK_PRICING.CUSTOMER_RATE_PER_VISS,  // 102,000 MMK
     paymentStatus: 'COD',
     paymentCollectedAt: 'KALAY',
@@ -60,7 +129,7 @@ export const INITIAL_PARCELS: Parcel[] = [
   {
     id: 'BMK-20261023-003',
     qrCode: 'BMK-20261023-003|MDY-KLY|240VISS',
-    senderName: 'ဦးကျော်သူ (အောင်စက်ပစ္စည်းရောင်းဝယ်ရေး)',
+    senderName: 'ဦးကျော်သူ (အောင်စက်ပစ္စည်း)',
     senderPhone: '09-970034567',
     senderAddress: 'မန္တလေး၊ စက်မှုဇုန် (၁)၊ ၆၂ လမ်း',
     receiverName: 'ကိုဟန်ဝင်း (ထွန်းစက်ပြင်ဝပ်ရှော့)',
@@ -71,6 +140,7 @@ export const INITIAL_PARCELS: Parcel[] = [
     packageCount: 3,
     weightViss: 240,
     customerRatePerViss: BMK_PRICING.CUSTOMER_RATE_PER_VISS,
+    isBulkyGoods: false,
     totalDeliveryFee: 240 * BMK_PRICING.CUSTOMER_RATE_PER_VISS, // 288,000 MMK
     paymentStatus: 'PAID',
     paymentCollectedAt: 'MANDALAY',
@@ -86,6 +156,36 @@ export const INITIAL_PARCELS: Parcel[] = [
     notes: 'လေးလံသော ပစ္စည်းဖြစ်၍ ကားအောက်ခြေတွင် ထားရှိရန်'
   },
   {
+    id: 'BMK-20261023-005',
+    qrCode: 'BMK-20261023-005|MDY-KLY|30VISS|BULKY',
+    senderName: 'ကိုအောင်မျိုး (ရွှေမင်းသား မွေ့ရာလုပ်ငန်း)',
+    senderPhone: '09-451239988',
+    senderAddress: 'မန္တလေး၊ စက်မှုဇုန် (၂)',
+    receiverName: 'ဦးမောင်တင် (တာဟန်း ကုန်တိုက်)',
+    receiverPhone: '09-254411223',
+    receiverAddress: 'ကလေးမြို့၊ တာဟန်းရပ်ကွက်၊ စျေးရှေ့',
+    itemType: 'ကုန်ပွ (မွေ့ရာ/ရေမြှုပ်)',
+    itemDescription: 'ရေမြှုပ်မွေ့ရာကြီး ၄ လုံး (ထုထည်ကြီးပြီး ပေါ့သော ပစ္စည်း)',
+    packageCount: 4,
+    weightViss: 30,
+    customerRatePerViss: 1800, // Custom Bulky Rate (ကုန်ပွစျေး)
+    isBulkyGoods: true,
+    bulkyNote: 'ကုန်ပွပစ္စည်း (ထုထည်နေရာယူသဖြင့် ကုန်ပွစျေး ၁,၈၀၀ ကျပ်/ပိသာ ကောက်ခံ)',
+    totalDeliveryFee: 30 * 1800, // 54,000 MMK
+    paymentStatus: 'PAID',
+    paymentCollectedAt: 'MANDALAY',
+    truckExpense: 30 * BMK_PRICING.TRUCK_RATE_PER_VISS,         // 33,000 MMK
+    mandalayLaborFee: 30 * BMK_PRICING.MDY_LABOR_PER_VISS,     // 750 MMK
+    kalayLaborFee: 30 * BMK_PRICING.KALAY_LABOR_PER_VISS,        // 750 MMK
+    baseNetProfit: 54000 - (33000 + 750 + 750),                 // 19,500 MMK (Higher profit!)
+    status: 'LOADED',
+    tripId: 'TRIP-20261023-01',
+    createdAt: '2026-10-23T08:15:00Z',
+    updatedAt: '2026-10-23T08:35:00Z',
+    bookedByStaff: 'ကိုအောင်ကို (MDY Gate)',
+    notes: 'အပေါ်ဆုံးတွင် တင်ရန်၊ ဖိညှပ်မခံနိုင်'
+  },
+  {
     id: 'BMK-20261023-004',
     qrCode: 'BMK-20261023-004|MDY-KLY|40VISS',
     senderName: 'ဒေါ်ခင်မျိုးနွယ် (နွယ်နွယ်ဆေးဆိုင်)',
@@ -94,11 +194,12 @@ export const INITIAL_PARCELS: Parcel[] = [
     receiverName: 'ဒေါက်တာဇင်မင်း (ကလေးကုသိုလ်ဖြစ်ဆေးခန်း)',
     receiverPhone: '09-955667788',
     receiverAddress: 'ကလေးမြို့၊ ဆေးရုံကြီးအနီး၊ ဗိုလ်ချုပ်လမ်း',
-    itemType: 'ဆေးဝါးနှင့် ကျန်းမာရေးသုံးပစ္စည်း',
+    itemType: 'ဆေးဝါးနှင့် ကျန်းမာရေး',
     itemDescription: 'အဖျားပျောက်ဆေးနှင့် ဓာတ်ဆားထုတ်များ (၄ ဖာ)',
     packageCount: 4,
     weightViss: 40,
     customerRatePerViss: BMK_PRICING.CUSTOMER_RATE_PER_VISS,
+    isBulkyGoods: false,
     totalDeliveryFee: 40 * BMK_PRICING.CUSTOMER_RATE_PER_VISS,  // 48,000 MMK
     paymentStatus: 'PAID',
     paymentCollectedAt: 'MANDALAY',
@@ -126,6 +227,7 @@ export const INITIAL_PARCELS: Parcel[] = [
     packageCount: 6,
     weightViss: 90,
     customerRatePerViss: BMK_PRICING.CUSTOMER_RATE_PER_VISS,
+    isBulkyGoods: false,
     totalDeliveryFee: 90 * BMK_PRICING.CUSTOMER_RATE_PER_VISS,  // 108,000 MMK
     paymentStatus: 'PAID',
     paymentCollectedAt: 'MANDALAY',
@@ -154,6 +256,7 @@ export const INITIAL_PARCELS: Parcel[] = [
     packageCount: 4,
     weightViss: 60,
     customerRatePerViss: BMK_PRICING.CUSTOMER_RATE_PER_VISS,
+    isBulkyGoods: false,
     totalDeliveryFee: 60 * BMK_PRICING.CUSTOMER_RATE_PER_VISS,  // 72,000 MMK
     paymentStatus: 'PAID',
     paymentCollectedAt: 'MANDALAY',
@@ -168,34 +271,6 @@ export const INITIAL_PARCELS: Parcel[] = [
     updatedAt: '2026-10-22T14:30:00Z',
     bookedByStaff: 'ကိုအောင်ကို (MDY Gate)',
     notes: 'လမ်းခရီးတွင် ပစ္စည်းပြုတ်ကျ ပျောက်ဆုံးသဖြင့် လျော်ကြေး ၅၀,၀၀၀ ကျပ် ပေးလျော်ခဲ့သည်'
-  },
-  {
-    id: 'BMK-20261022-015',
-    qrCode: 'BMK-20261022-015|MDY-KLY|150VISS',
-    senderName: 'ဒေါ်လှနွယ် (နွယ်နွယ်ဆန်ကုန်သည်)',
-    senderPhone: '09-450998877',
-    senderAddress: 'မန္တလေး၊ ဒေးဝန်းစျေး၊ မဟာအောင်မြေ',
-    receiverName: 'ဦးထွန်းဦး',
-    receiverPhone: '09-258833112',
-    receiverAddress: 'ကလေးမြို့၊ ကလေးစျေးကြီးရှေ့',
-    itemType: 'စားသောက်ကုန် / စပါးဆန်',
-    itemDescription: 'ပေါ်ဆန်းမွှေး ဆန်အိတ် (၃ အိတ်)',
-    packageCount: 3,
-    weightViss: 150,
-    customerRatePerViss: BMK_PRICING.CUSTOMER_RATE_PER_VISS,
-    totalDeliveryFee: 150 * BMK_PRICING.CUSTOMER_RATE_PER_VISS, // 180,000 MMK
-    paymentStatus: 'PAID',
-    paymentCollectedAt: 'MANDALAY',
-    truckExpense: 150 * BMK_PRICING.TRUCK_RATE_PER_VISS,        // 165,000 MMK
-    mandalayLaborFee: 150 * BMK_PRICING.MDY_LABOR_PER_VISS,    // 3,750 MMK
-    kalayLaborFee: 150 * BMK_PRICING.KALAY_LABOR_PER_VISS,       // 3,750 MMK
-    baseNetProfit: 150 * BMK_PRICING.BASE_PROFIT_PER_VISS,      // 7,500 MMK
-    status: 'DELIVERED',
-    tripId: 'TRIP-20261022-02',
-    createdAt: '2026-10-22T08:00:00Z',
-    updatedAt: '2026-10-23T06:45:00Z',
-    bookedByStaff: 'မောင်ဇော် (MDY Gate)',
-    notes: 'ကလေးဂိတ်မှ လူကြုံ လာရောက်ထုတ်ယူပြီးစီး'
   }
 ];
 
@@ -210,11 +285,35 @@ export const INITIAL_TRIPS: Trip[] = [
     route: 'Mandalay -> Monywa -> Gangaw -> Kalay (မန္တလေး - မုံရွာ - ဂန့်ဂေါ - ကလေး)',
     status: 'IN_TRANSIT',
     maxCapacityViss: 8000,
-    currentLoadedViss: 445, // parcels 001 (120) + 002 (85) + 003 (240)
-    parcelIds: ['BMK-20261023-001', 'BMK-20261023-002', 'BMK-20261023-003'],
-    totalTruckRentFee: 445 * BMK_PRICING.TRUCK_RATE_PER_VISS, // 489,500 MMK
-    totalMdyLabor: 445 * BMK_PRICING.MDY_LABOR_PER_VISS,     // 11,125 MMK
-    totalKalayLabor: 445 * BMK_PRICING.KALAY_LABOR_PER_VISS,   // 11,125 MMK
+    currentLoadedViss: 475, // 120 + 85 + 240 + 30
+    parcelIds: ['BMK-20261023-001', 'BMK-20261023-002', 'BMK-20261023-003', 'BMK-20261023-005'],
+    totalTruckRentFee: 475 * BMK_PRICING.TRUCK_RATE_PER_VISS, // 522,500 MMK
+    totalMdyLabor: 475 * BMK_PRICING.MDY_LABOR_PER_VISS,     // 11,875 MMK
+    totalKalayLabor: 475 * BMK_PRICING.KALAY_LABOR_PER_VISS,   // 11,875 MMK
+    
+    // Driver Advance & Settlement
+    advancePaymentMdy: 300000, // မန္တလေးမှ ထွက်ခွာချိန် ဆီဖိုး/လမ်းစရိတ် ကြိုထုတ် ၃ သိန်းကျပ်
+    roadExpensesAllowance: 50000, // တိုးဂိတ်ကြေး/စစ်ဆေးရေးဂိတ် ထောက်ပံ့ ၅ သောင်းကျပ်
+    expenses: [
+      {
+        id: 'EXP-01',
+        category: 'FUEL',
+        description: 'မုံရွာတွင် ဒီဇယ်ဆီ ၂၀ ဂါလန် ဖြည့်ခြင်း',
+        amount: 220000,
+        date: '2026-10-23 10:30',
+        location: 'မုံရွာ အထွက် စက်သုံးဆီဆိုင်'
+      },
+      {
+        id: 'EXP-02',
+        category: 'TOLL_GATE',
+        description: 'တိုးဂိတ်နှင့် တံတားကြေးများ',
+        amount: 25000,
+        date: '2026-10-23 13:00',
+        location: 'ဂန့်ဂေါလမ်းခွဲ တိုးဂိတ်'
+      }
+    ],
+    remainingSettlementKalay: 522500 - 300000, // ကလေးဂိတ်တွင် ရှင်းပေးရန် ကျန်ငွေ ၂၂၂,၅၀၀ ကျပ်
+    isDriverSettled: false,
     notes: '၁၂ ဘီးကားကြီး မနက် ၈:၃၀ နာရီတွင် မန္တလေးမှ ထွက်ခွာခဲ့သည်'
   },
   {
@@ -228,12 +327,27 @@ export const INITIAL_TRIPS: Trip[] = [
     route: 'Mandalay -> Monywa -> Gangaw -> Kalay',
     status: 'ARRIVED',
     maxCapacityViss: 8500,
-    currentLoadedViss: 240, // 90 + 150
-    parcelIds: ['BMK-20261022-018', 'BMK-20261022-015'],
+    currentLoadedViss: 240,
+    parcelIds: ['BMK-20261022-018'],
     totalTruckRentFee: 240 * BMK_PRICING.TRUCK_RATE_PER_VISS, // 264,000 MMK
     totalMdyLabor: 240 * BMK_PRICING.MDY_LABOR_PER_VISS,     // 6,000 MMK
     totalKalayLabor: 240 * BMK_PRICING.KALAY_LABOR_PER_VISS,   // 6,000 MMK
-    notes: 'ကလေးဂိတ်သို့ မနက် ၇ နာရီတွင် အောင်မြင်စွာ ဆိုက်ရောက်ခဲ့သည်'
+    advancePaymentMdy: 150000,
+    roadExpensesAllowance: 30000,
+    expenses: [
+      {
+        id: 'EXP-10',
+        category: 'FUEL',
+        description: 'ဒီဇယ်ဆီဖြည့်ခြင်း',
+        amount: 140000,
+        date: '2026-10-22 12:00',
+        location: 'မုံရွာ'
+      }
+    ],
+    remainingSettlementKalay: 264000 - 150000, // ၁၁၄,၀၀၀ ကျပ်
+    isDriverSettled: true,
+    driverSettledDate: '2026-10-23T08:00:00Z',
+    notes: 'ကလေးဂိတ်သို့ မနက် ၇ နာရီတွင် အောင်မြင်စွာ ဆိုက်ရောက်ခဲ့ပြီး ယာဉ်မောင်းအား ငွေအကြေရှင်းပြီး'
   }
 ];
 

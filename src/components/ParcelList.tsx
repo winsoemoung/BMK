@@ -11,7 +11,11 @@ import {
   Truck, 
   Package, 
   Filter,
-  Camera
+  Camera,
+  Play,
+  RotateCcw,
+  Zap,
+  Volume2
 } from 'lucide-react';
 
 interface ParcelListProps {
@@ -20,6 +24,7 @@ interface ParcelListProps {
   lang: 'my' | 'en';
   onSelectParcelForReceipt: (parcel: Parcel) => void;
   onUpdateStatus: (parcelId: string, newStatus: ParcelStatus) => void;
+  onBatchUpdateStatus: (parcelIds: string[], newStatus: ParcelStatus) => void;
   onOpenClaimModal: (parcel: Parcel) => void;
   onOpenBookingModal: () => void;
 }
@@ -30,14 +35,19 @@ export const ParcelList: React.FC<ParcelListProps> = ({
   lang,
   onSelectParcelForReceipt,
   onUpdateStatus,
+  onBatchUpdateStatus,
   onOpenClaimModal,
   onOpenBookingModal,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [paymentFilter, setPaymentFilter] = useState<string>('ALL');
+
+  // Scanner & Continuous Batch Mode
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [scannedResult, setScannedResult] = useState('');
+  const [isContinuousMode, setIsContinuousMode] = useState(false);
+  const [scannedBatchIds, setScannedBatchIds] = useState<string[]>([]);
+  const [recentScannedNotice, setRecentScannedNotice] = useState<string>('');
 
   // Filtering
   const filteredParcels = parcels.filter((parcel) => {
@@ -56,12 +66,25 @@ export const ParcelList: React.FC<ParcelListProps> = ({
   });
 
   const handleSimulateScan = (idToScan: string) => {
-    setSearchTerm(idToScan);
-    setScannedResult(`Found: ${idToScan}`);
-    setTimeout(() => {
-      setIsScannerOpen(false);
-      setScannedResult('');
-    }, 1200);
+    if (!scannedBatchIds.includes(idToScan)) {
+      setScannedBatchIds((prev) => [idToScan, ...prev]);
+    }
+    setRecentScannedNotice(`စကင်ဖတ်ပြီး: ${idToScan}`);
+
+    // If continuous mode is off, clear notice after 1.5s
+    if (!isContinuousMode) {
+      setTimeout(() => {
+        setIsScannerOpen(false);
+        setRecentScannedNotice('');
+      }, 1500);
+    }
+  };
+
+  const handleApplyBatchStatus = (targetStatus: ParcelStatus) => {
+    if (scannedBatchIds.length === 0) return;
+    onBatchUpdateStatus(scannedBatchIds, targetStatus);
+    setRecentScannedNotice(`ပစ္စည်း ${scannedBatchIds.length} ခုကို ${getStatusBurmese(targetStatus)} အဖြစ် ပြောင်းလဲပြီးပါပြီ`);
+    setScannedBatchIds([]);
   };
 
   const getNextStatus = (current: ParcelStatus): ParcelStatus | null => {
@@ -123,70 +146,138 @@ export const ParcelList: React.FC<ParcelListProps> = ({
             )}
           </div>
 
-          {/* Quick Barcode / QR Scanner Toggle */}
+          {/* Continuous Batch Camera Scanner Trigger */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsScannerOpen(!isScannerOpen)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${
                 isScannerOpen
-                  ? 'bg-amber-400 text-slate-950 border-amber-400'
+                  ? 'bg-amber-400 text-slate-950 border-amber-400 font-bold'
                   : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
               }`}
             >
               <Camera className="w-4 h-4" />
-              <span>{lang === 'my' ? 'QR / Barcode စကင်နာ' : 'QR Scanner'}</span>
+              <span>{lang === 'my' ? 'ML Kit တရစပ် စကင်နာ' : 'Continuous Batch Scanner'}</span>
             </button>
 
             <button
               onClick={onOpenBookingModal}
-              className="px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs whitespace-nowrap"
+              className="px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs whitespace-nowrap shadow-sm"
             >
               + {lang === 'my' ? 'ပစ္စည်းအသစ်သွင်း' : 'New Parcel'}
             </button>
           </div>
         </div>
 
-        {/* QR Scanner Simulation Panel */}
+        {/* Google ML Kit Continuous Camera Batch Scanner Panel */}
         {isScannerOpen && (
-          <div className="p-4 rounded-xl bg-slate-950 border border-amber-500/40 space-y-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-amber-400 flex items-center gap-1.5">
-                <QrCode className="w-4 h-4" />
-                {lang === 'my' ? 'ကင်မရာ / Barcode Scanner အသုံးပြုခြင်း' : 'Live Camera / Barcode Scanner'}
-              </span>
-              <span className="text-slate-400 text-[11px]">
-                {lang === 'my' ? 'ဘောင်ချာ QR Code ကို ချိန်ပါ' : 'Align parcel QR code in frame'}
-              </span>
+          <div className="p-4 rounded-xl bg-slate-950 border border-amber-500/50 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-amber-400 flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  {lang === 'my' ? 'Google ML Kit စကင်နာ (Batch Scanning Mode)' : 'Google ML Kit Continuous Scanner'}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono text-[10px]">
+                  Camera Active
+                </span>
+              </div>
+
+              {/* Toggle Continuous Mode */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsContinuousMode(!isContinuousMode)}
+                  className={`px-2.5 py-1 rounded text-xs font-semibold border transition-colors ${
+                    isContinuousMode
+                      ? 'bg-purple-600 text-white border-purple-500'
+                      : 'bg-slate-900 text-slate-400 border-slate-800'
+                  }`}
+                >
+                  {isContinuousMode ? '⚡ တရစပ်စကင်ဖတ်မှု ဖွင့်ထားသည်' : 'Single Scan'}
+                </button>
+              </div>
             </div>
 
-            {/* Simulated viewfinder */}
-            <div className="h-32 rounded-lg border-2 border-dashed border-amber-500/40 bg-slate-900/60 flex flex-col items-center justify-center p-3 relative overflow-hidden">
-              <div className="w-24 h-24 border border-amber-400/70 rounded flex items-center justify-center relative">
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-400 animate-pulse" />
-                <span className="text-[10px] text-amber-300">Aim QR</span>
+            {/* Simulated Live Viewfinder */}
+            <div className="h-36 rounded-xl border-2 border-dashed border-amber-500/50 bg-slate-900/80 flex flex-col items-center justify-center p-3 relative overflow-hidden">
+              <div className="w-32 h-20 border-2 border-amber-400 rounded-lg flex items-center justify-center relative">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-400 animate-pulse shadow-sm shadow-amber-400" />
+                <span className="text-[10px] font-mono text-amber-300">Scan QR / Barcode</span>
               </div>
-              {scannedResult && (
-                <div className="absolute inset-0 bg-emerald-950/90 flex items-center justify-center font-bold text-emerald-400 text-xs">
-                  {scannedResult}
+
+              {recentScannedNotice && (
+                <div className="absolute bottom-2 left-4 right-4 bg-emerald-950/90 border border-emerald-500/40 text-emerald-300 text-xs py-1 px-3 rounded-lg text-center font-bold">
+                  {recentScannedNotice}
                 </div>
               )}
             </div>
 
-            {/* Quick click to test scan */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] text-slate-400">
-                {lang === 'my' ? 'လျင်မြန်စွာ စမ်းသပ်စကင်ဖတ်ရန်:' : 'Sample barcode test:'}
-              </span>
-              {parcels.slice(0, 3).map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => handleSimulateScan(p.id)}
-                  className="px-2 py-0.5 rounded bg-slate-800 text-[10px] font-mono text-amber-300 hover:bg-slate-700"
-                >
-                  {p.id}
-                </button>
-              ))}
+            {/* Quick Test Barcode Buttons */}
+            <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[11px] text-slate-400">
+                  {lang === 'my' ? 'ကလစ်နှိပ်၍ စကင်ဖတ်မှု စမ်းသပ်ပါ:' : 'Quick Scan Barcodes:'}
+                </span>
+                {parcels.slice(0, 4).map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleSimulateScan(p.id)}
+                    className={`px-2 py-1 rounded text-[10px] font-mono transition-colors ${
+                      scannedBatchIds.includes(p.id)
+                        ? 'bg-emerald-600 text-white font-bold'
+                        : 'bg-slate-800 text-amber-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    {p.id}
+                  </button>
+                ))}
+              </div>
+
+              {/* Scanned Batch Tally */}
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-amber-400 font-bold text-xs">
+                  {scannedBatchIds.length} ခု စကင်ဖတ်ပြီး
+                </span>
+                {scannedBatchIds.length > 0 && (
+                  <button
+                    onClick={() => setScannedBatchIds([])}
+                    className="p-1 text-slate-400 hover:text-white"
+                    title="Clear batch"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Batch Action Bar if items scanned */}
+            {scannedBatchIds.length > 0 && (
+              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="text-slate-300">
+                  ရွေးချယ်ထားသော ဘောင်ချာ <strong>{scannedBatchIds.length}</strong> ခုကို တစ်ပြိုင်နက် ပြောင်းလဲမည်-
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleApplyBatchStatus('LOADED')}
+                    className="px-2.5 py-1 rounded bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold"
+                  >
+                    ကားပေါ်တင်ပြီး (Loaded)
+                  </button>
+                  <button
+                    onClick={() => handleApplyBatchStatus('ARRIVED_KALAY')}
+                    className="px-2.5 py-1 rounded bg-purple-500 hover:bg-purple-400 text-white font-bold"
+                  >
+                    ကလေးဂိတ်ရောက် (Arrived)
+                  </button>
+                  <button
+                    onClick={() => handleApplyBatchStatus('DELIVERED')}
+                    className="px-2.5 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold"
+                  >
+                    အပ်နှံပြီး (Delivered)
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -269,10 +360,15 @@ export const ParcelList: React.FC<ParcelListProps> = ({
                 key={parcel.id}
                 className="p-5 rounded-2xl border border-slate-800 bg-slate-900/80 hover:border-slate-700/80 transition-all space-y-4"
               >
-                {/* Row 1: ID, Date, Status, Payment */}
+                {/* Row 1: ID, Bulky Badge, Date, Status, Payment */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-bold text-amber-400 text-sm">{parcel.id}</span>
+                    {parcel.isBulkyGoods && (
+                      <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30">
+                        📦 ကုန်ပွ ({parcel.customerRatePerViss} ကျပ်/ပိသာ)
+                      </span>
+                    )}
                     <span className="text-slate-500 text-xs">·</span>
                     <span className="text-slate-400 text-xs">
                       {new Date(parcel.createdAt).toLocaleDateString('my-MM')}
@@ -354,7 +450,9 @@ export const ParcelList: React.FC<ParcelListProps> = ({
                     </div>
                     <div>
                       <span className="text-slate-500 block">{lang === 'my' ? 'နှုန်းထား' : 'Rate'}</span>
-                      <span className="font-mono text-slate-300">1,200 MMK/ပိသာ</span>
+                      <span className="font-mono text-slate-300 font-semibold">
+                        {parcel.customerRatePerViss} MMK/ပိသာ
+                      </span>
                     </div>
                   </div>
 
@@ -371,13 +469,13 @@ export const ParcelList: React.FC<ParcelListProps> = ({
                 {/* Row 4: Action Buttons (Receipt, Advance Status, File Claim) */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                   <div className="flex items-center gap-2">
-                    {/* View Digital Receipt & QR */}
+                    {/* View Digital Receipt & Bluetooth Sticker */}
                     <button
                       onClick={() => onSelectParcelForReceipt(parcel)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
                     >
                       <QrCode className="w-3.5 h-3.5 text-amber-400" />
-                      <span>{lang === 'my' ? 'ဘောင်ချာ / Viber ပို့မည်' : 'Viber Receipt'}</span>
+                      <span>{lang === 'my' ? 'ဘောင်ချာ / စတစ်ကာ' : 'Receipt & Sticker'}</span>
                     </button>
 
                     {/* Report Claim / Damage (if not already claimed) */}
@@ -388,7 +486,7 @@ export const ParcelList: React.FC<ParcelListProps> = ({
                         title="Report lost or damaged cargo for compensation"
                       >
                         <AlertTriangle className="w-3.5 h-3.5" />
-                        <span>{lang === 'my' ? 'ပျောက်ဆုံး/ပျက်စီး လျော်ကြေးတင်' : 'Report Loss'}</span>
+                        <span>{lang === 'my' ? 'လျော်ကြေးတင်' : 'Report Loss'}</span>
                       </button>
                     )}
                   </div>

@@ -18,12 +18,22 @@ export type TripStatus = 'LOADING' | 'IN_TRANSIT' | 'ARRIVED' | 'COMPLETED';
 
 // Core Business Pricing Constants (MMK per viss / ပိသာ)
 export const BMK_PRICING = {
-  CUSTOMER_RATE_PER_VISS: 1200,   // Customer service fee per viss
+  CUSTOMER_RATE_PER_VISS: 1200,   // Standard customer service fee per viss
+  DEFAULT_BULKY_RATE: 1600,       // Default custom bulky rate (ကုန်ပွစျေး)
   TRUCK_RATE_PER_VISS: 1100,      // 12-wheel truck charter fee per viss
   MDY_LABOR_PER_VISS: 25,         // Mandalay loading labor fee per viss
   KALAY_LABOR_PER_VISS: 25,       // Kalay unloading labor fee per viss
-  BASE_PROFIT_PER_VISS: 50,       // 1200 - (1100 + 25 + 25) = 50 MMK
+  BASE_PROFIT_PER_VISS: 50,       // Standard base profit per viss
 };
+
+export interface FrequentCustomer {
+  id: string;
+  name: string;
+  phone: string;
+  city: 'MANDALAY' | 'KALAY';
+  address: string;
+  defaultItemType: string;
+}
 
 export interface Parcel {
   id: string;                    // e.g., BMK-20261023-001
@@ -38,14 +48,16 @@ export interface Parcel {
   itemDescription: string;
   packageCount: number;
   weightViss: number;            // ပိသာ အလေးချိန်
-  customerRatePerViss: number;   // 1200 MMK
-  totalDeliveryFee: number;      // weightViss * 1200
+  customerRatePerViss: number;   // 1200 MMK or custom bulky rate
+  isBulkyGoods: boolean;         // ကုန်ပွ (ထုထည်ကြီးပြီး ပေါ့သော ပစ္စည်း)
+  bulkyNote?: string;            // ဥပမာ - မွေ့ရာ၊ ပေါင်မုန့်ဖာ၊ ပလတ်စတစ်ခွက်
+  totalDeliveryFee: number;      // weightViss * customerRatePerViss
   paymentStatus: PaymentStatus;
   paymentCollectedAt: 'MANDALAY' | 'KALAY';
   truckExpense: number;          // weightViss * 1100
   mandalayLaborFee: number;      // weightViss * 25
   kalayLaborFee: number;         // weightViss * 25
-  baseNetProfit: number;         // weightViss * 50
+  baseNetProfit: number;         // totalDeliveryFee - (truckExpense + mandalayLaborFee + kalayLaborFee)
   status: ParcelStatus;
   tripId?: string;
   claimId?: string;
@@ -53,6 +65,15 @@ export interface Parcel {
   updatedAt: string;
   bookedByStaff: string;
   notes?: string;
+}
+
+export interface DriverExpenseEntry {
+  id: string;
+  category: 'FUEL' | 'TOLL_GATE' | 'CHECKPOINT' | 'ALLOWANCE' | 'REPAIR';
+  description: string;
+  amount: number;
+  date: string;
+  location: string;
 }
 
 export interface Trip {
@@ -71,6 +92,15 @@ export interface Trip {
   totalTruckRentFee: number;     // loadedViss * 1100
   totalMdyLabor: number;         // loadedViss * 25
   totalKalayLabor: number;       // loadedViss * 25
+  
+  // Driver Trip Advance & Settlement Ledger (ယာဉ်မောင်း လမ်းစရိတ်နှင့် ကြိုထုတ်ငွေ စာရင်း)
+  advancePaymentMdy: number;      // မန္တလေးထွက်ခွာချိန် ဆီဖိုး/လမ်းစရိတ် ကြိုထုတ်ငွေ
+  roadExpensesAllowance: number;  // တိုးဂိတ်ကြေး/စစ်ဆေးရေးဂိတ် ထောက်ပံ့ငွေ
+  expenses: DriverExpenseEntry[]; // En-route expenses ledger
+  remainingSettlementKalay: number; // ကလေးရောက်မှ ရှင်းပေးရန် ကျန်ငွေ (totalTruckRentFee - advancePaymentMdy)
+  isDriverSettled: boolean;      // ယာဉ်မောင်းအား ငွေအပြည့်ရှင်းပြီး/မပြီး
+  driverSettledDate?: string;
+
   notes?: string;
 }
 
@@ -94,12 +124,12 @@ export interface Claim {
 export interface GateFinancialSummary {
   totalParcelsCount: number;
   totalWeightViss: number;
-  totalRevenue: number;          // totalWeight * 1200
+  totalRevenue: number;          // customer revenue
   totalTruckExpense: number;     // totalWeight * 1100
   totalMandalayLabor: number;    // totalWeight * 25
   totalKalayLabor: number;       // totalWeight * 25
   totalOperatingExpense: number; // Truck + MDY labor + Kalay labor
-  grossBaseProfit: number;       // totalWeight * 50
+  grossBaseProfit: number;       // Revenue - Operating Expenses
   totalClaimsPaid: number;       // sum of approved compensation
   trueNetProfit: number;         // grossBaseProfit - totalClaimsPaid
   paidRevenue: number;
