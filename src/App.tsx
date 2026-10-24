@@ -25,6 +25,8 @@ import { ParcelBookingModal } from './components/ParcelBookingModal';
 import { DigitalReceiptModal } from './components/DigitalReceiptModal';
 import { AdminPricingModal } from './components/AdminPricingModal';
 import { LoginModal } from './components/LoginModal';
+import { GeminiChatBotModal } from './components/GeminiChatBotModal';
+import { Sparkles } from 'lucide-react';
 import { testFirestoreConnection } from './firebase/config';
 import { 
   seedInitialDataIfEmpty,
@@ -111,6 +113,7 @@ export default function App() {
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [selectedParcelForReceipt, setSelectedParcelForReceipt] = useState<Parcel | null>(null);
   const [parcelForClaim, setParcelForClaim] = useState<Parcel | null>(null);
+  const [isChatBotOpen, setIsChatBotOpen] = useState(false);
 
   // Connect to Cloud Firestore & Listen to Real-Time Updates
   useEffect(() => {
@@ -416,6 +419,7 @@ export default function App() {
         onToggleLang={() => setLang(lang === 'my' ? 'en' : 'my')}
         onOpenBookingModal={() => setIsBookingModalOpen(true)}
         onOpenPricingModal={() => setIsPricingModalOpen(true)}
+        onOpenChatBot={() => setIsChatBotOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -593,6 +597,38 @@ export default function App() {
         onSelectUser={handleSelectUser}
         lang={lang}
       />
+
+      {/* Gemini AI Chat Bot Modal */}
+      <GeminiChatBotModal
+        isOpen={isChatBotOpen}
+        onClose={() => setIsChatBotOpen(false)}
+        currentUser={currentUser}
+        pricingConfig={pricingConfig}
+        weightUnit={weightUnit}
+        parcelsCount={parcels.length}
+        tripsCount={trips.length}
+        lang={lang}
+      />
+
+      {/* Floating Gemini AI Chat Bot Trigger Button */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          onClick={() => setIsChatBotOpen(true)}
+          className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 font-bold text-xs sm:text-sm shadow-xl shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-105 active:scale-95 transition-all"
+        >
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-950 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-950"></span>
+          </span>
+          <span className="flex items-center gap-1.5 font-bold">
+            <Sparkles className="w-4 h-4 text-slate-950 animate-pulse group-hover:rotate-12 transition-transform" />
+            <span>{lang === 'my' ? 'BMK AI လက်ထောက်' : 'BMK AI Copilot'}</span>
+          </span>
+          <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-full bg-slate-950/20 text-slate-950 text-[10px] font-mono">
+            Gemini
+          </span>
+        </button>
+      </div>
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-4 text-xs text-slate-500 text-center">
