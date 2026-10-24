@@ -26,7 +26,12 @@ import { DigitalReceiptModal } from './components/DigitalReceiptModal';
 import { AdminPricingModal } from './components/AdminPricingModal';
 import { LoginModal } from './components/LoginModal';
 import { GeminiChatBotModal } from './components/GeminiChatBotModal';
-import { Sparkles } from 'lucide-react';
+import { CustomerNotificationModal, NotificationMode } from './components/CustomerNotificationModal';
+import { FacebookStories } from './components/FacebookStories';
+import { FacebookCreatePost } from './components/FacebookCreatePost';
+import { FacebookSidebarLeft } from './components/FacebookSidebarLeft';
+import { FacebookSidebarRight } from './components/FacebookSidebarRight';
+import { Sparkles, MessageCircle } from 'lucide-react';
 import { testFirestoreConnection } from './firebase/config';
 import { 
   seedInitialDataIfEmpty,
@@ -114,6 +119,10 @@ export default function App() {
   const [selectedParcelForReceipt, setSelectedParcelForReceipt] = useState<Parcel | null>(null);
   const [parcelForClaim, setParcelForClaim] = useState<Parcel | null>(null);
   const [isChatBotOpen, setIsChatBotOpen] = useState(false);
+  const [notificationModalData, setNotificationModalData] = useState<{
+    parcel: Parcel;
+    mode: NotificationMode;
+  } | null>(null);
 
   // Connect to Cloud Firestore & Listen to Real-Time Updates
   useEffect(() => {
@@ -245,6 +254,25 @@ export default function App() {
       prev.map((p) => {
         if (parcelIds.includes(p.id)) {
           const updated = { ...p, status: newStatus, updatedAt: new Date().toISOString() };
+          syncParcelToFirestore(updated);
+          return updated;
+        }
+        return p;
+      })
+    );
+  };
+
+  const handleMarkParcelNotified = (parcelId: string, type: 'INTAKE' | 'ARRIVAL') => {
+    setParcels((prev) =>
+      prev.map((p) => {
+        if (p.id === parcelId) {
+          const updated = {
+            ...p,
+            ...(type === 'INTAKE'
+              ? { notifiedIntakeAt: new Date().toISOString() }
+              : { notifiedArrivalAt: new Date().toISOString() }),
+            updatedAt: new Date().toISOString(),
+          };
           syncParcelToFirestore(updated);
           return updated;
         }
@@ -403,8 +431,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Top Navigation */}
+    <div className="min-h-screen bg-[#f0f2f5] text-[#050505] flex flex-col font-sans">
+      {/* Top Navigation: Facebook Header */}
       <Header
         currentTab={currentTab}
         onTabChange={setCurrentTab}
@@ -423,16 +451,16 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 py-6 px-4 sm:px-6">
+      <main className="flex-1 py-4">
         {isMobileView ? (
-          /* Mobile Android Device Mockup Frame */
-          <div className="max-w-[420px] mx-auto">
+          /* Mobile Android Device Mockup Frame (Facebook Mobile Experience) */
+          <div className="max-w-[420px] mx-auto px-2">
             {/* Device Frame */}
-            <div className="rounded-[40px] border-[8px] border-slate-800 bg-slate-950 shadow-2xl overflow-hidden ring-1 ring-slate-700/50">
+            <div className="rounded-[40px] border-[8px] border-[#050505] bg-[#f0f2f5] shadow-2xl overflow-hidden ring-1 ring-slate-300">
               {/* Android Status Bar */}
-              <div className="bg-slate-900 px-6 py-2 flex items-center justify-between text-[11px] text-slate-400 font-mono select-none">
+              <div className="bg-white px-6 py-2 flex items-center justify-between text-[11px] text-[#65676b] font-mono select-none border-b border-[#e4e6eb]">
                 <span>09:30</span>
-                <div className="w-16 h-4 bg-slate-950 rounded-full mx-auto" />
+                <div className="w-16 h-3 bg-[#e4e6eb] rounded-full mx-auto" />
                 <span className="flex items-center gap-1">
                   <span>5G</span>
                   <span>100%</span>
@@ -440,7 +468,24 @@ export default function App() {
               </div>
 
               {/* App Content inside Android Mockup */}
-              <div className="p-4 overflow-y-auto max-h-[740px]">
+              <div className="p-3 overflow-y-auto max-h-[740px] space-y-3">
+                {/* Mobile Facebook Stories */}
+                <FacebookStories
+                  parcels={parcels}
+                  trips={trips}
+                  onOpenBookingModal={() => setIsBookingModalOpen(true)}
+                  onNavigateTab={setCurrentTab}
+                  lang={lang}
+                />
+
+                {/* Mobile Facebook Create Post */}
+                <FacebookCreatePost
+                  currentUser={currentUser}
+                  onOpenBookingModal={() => setIsBookingModalOpen(true)}
+                  onNavigateTab={setCurrentTab}
+                  lang={lang}
+                />
+
                 {currentTab === 'dashboard' && (
                   <FinancialDashboard
                     parcels={parcels}
@@ -466,6 +511,7 @@ export default function App() {
                     onBatchUpdateStatus={handleBatchUpdateStatus}
                     onOpenClaimModal={handleOpenClaimModalFromParcel}
                     onOpenBookingModal={() => setIsBookingModalOpen(true)}
+                    onOpenNotificationModal={(parcel, mode) => setNotificationModalData({ parcel, mode })}
                   />
                 )}
                 {currentTab === 'trips' && (
@@ -478,6 +524,7 @@ export default function App() {
                     onAddTripExpense={handleAddTripExpense}
                     userRole={userRole}
                     lang={lang}
+                    onMarkParcelNotified={handleMarkParcelNotified}
                   />
                 )}
                 {currentTab === 'claims' && (
@@ -495,65 +542,118 @@ export default function App() {
               </div>
 
               {/* Android Bottom Navigation Bar Indicator */}
-              <div className="bg-slate-900 py-3 flex justify-center">
-                <div className="w-28 h-1 bg-slate-600 rounded-full" />
+              <div className="bg-white py-2 flex justify-center border-t border-[#e4e6eb]">
+                <div className="w-28 h-1 bg-[#65676b] rounded-full" />
               </div>
             </div>
           </div>
         ) : (
-          /* Desktop Baseline */
-          <div className="max-w-7xl mx-auto">
-            {currentTab === 'dashboard' && (
-              <FinancialDashboard
-                parcels={parcels}
-                trips={trips}
-                claims={claims}
-                userRole={userRole}
-                pricingConfig={pricingConfig}
-                weightUnit={weightUnit}
-                lang={lang}
-                onNavigateTab={setCurrentTab}
-                onOpenBookingModal={() => setIsBookingModalOpen(true)}
-                onOpenPricingModal={() => setIsPricingModalOpen(true)}
-              />
-            )}
-            {currentTab === 'parcels' && (
-              <ParcelList
-                parcels={parcels}
-                userRole={userRole}
-                weightUnit={weightUnit}
-                lang={lang}
-                onSelectParcelForReceipt={setSelectedParcelForReceipt}
-                onUpdateStatus={handleUpdateParcelStatus}
-                onBatchUpdateStatus={handleBatchUpdateStatus}
-                onOpenClaimModal={handleOpenClaimModalFromParcel}
-                onOpenBookingModal={() => setIsBookingModalOpen(true)}
-              />
-            )}
-            {currentTab === 'trips' && (
-              <TripManagement
-                trips={trips}
-                parcels={parcels}
-                onAddTrip={handleAddTrip}
-                onUpdateTripStatus={handleUpdateTripStatus}
-                onUpdateTripSettlement={handleUpdateTripSettlement}
-                onAddTripExpense={handleAddTripExpense}
-                userRole={userRole}
-                lang={lang}
-              />
-            )}
-            {currentTab === 'claims' && (
-              <ClaimsManagement
-                claims={claims}
-                parcels={parcels}
-                onAddClaim={handleAddClaim}
-                onUpdateClaimStatus={handleUpdateClaimStatus}
-                userRole={userRole}
-                lang={lang}
-                preselectedParcel={parcelForClaim}
-              />
-            )}
-            {currentTab === 'android-studio' && <AndroidStudioHub lang={lang} />}
+          /* Desktop Baseline: Facebook 3-Column Newsfeed Layout */
+          <div className="max-w-[1920px] mx-auto px-3 sm:px-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              {/* LEFT COLUMN (3 cols): Facebook Shortcuts & Navigation Rail */}
+              <div className="hidden lg:block lg:col-span-3 sticky top-20">
+                <FacebookSidebarLeft
+                  currentUser={currentUser}
+                  currentTab={currentTab}
+                  onNavigateTab={setCurrentTab}
+                  onOpenLoginModal={() => setIsLoginModalOpen(true)}
+                  onQuickRoleSwitch={handleQuickRoleSwitch}
+                  weightUnit={weightUnit}
+                  onToggleWeightUnit={handleToggleWeightUnit}
+                  onOpenPricingModal={() => setIsPricingModalOpen(true)}
+                  lang={lang}
+                />
+              </div>
+
+              {/* CENTER COLUMN (6 cols): Facebook Newsfeed & Main Work area */}
+              <div className="col-span-12 lg:col-span-6 space-y-4 max-w-2xl mx-auto w-full">
+                {/* Facebook Stories Carousel */}
+                <FacebookStories
+                  parcels={parcels}
+                  trips={trips}
+                  onOpenBookingModal={() => setIsBookingModalOpen(true)}
+                  onNavigateTab={setCurrentTab}
+                  lang={lang}
+                />
+
+                {/* Facebook Create Post Widget ("What's on your mind?") */}
+                <FacebookCreatePost
+                  currentUser={currentUser}
+                  onOpenBookingModal={() => setIsBookingModalOpen(true)}
+                  onNavigateTab={setCurrentTab}
+                  lang={lang}
+                />
+
+                {/* Main Tab Content */}
+                {currentTab === 'dashboard' && (
+                  <FinancialDashboard
+                    parcels={parcels}
+                    trips={trips}
+                    claims={claims}
+                    userRole={userRole}
+                    pricingConfig={pricingConfig}
+                    weightUnit={weightUnit}
+                    lang={lang}
+                    onNavigateTab={setCurrentTab}
+                    onOpenBookingModal={() => setIsBookingModalOpen(true)}
+                    onOpenPricingModal={() => setIsPricingModalOpen(true)}
+                  />
+                )}
+                {currentTab === 'parcels' && (
+                  <ParcelList
+                    parcels={parcels}
+                    userRole={userRole}
+                    weightUnit={weightUnit}
+                    lang={lang}
+                    onSelectParcelForReceipt={setSelectedParcelForReceipt}
+                    onUpdateStatus={handleUpdateParcelStatus}
+                    onBatchUpdateStatus={handleBatchUpdateStatus}
+                    onOpenClaimModal={handleOpenClaimModalFromParcel}
+                    onOpenBookingModal={() => setIsBookingModalOpen(true)}
+                    onOpenNotificationModal={(parcel, mode) => setNotificationModalData({ parcel, mode })}
+                  />
+                )}
+                {currentTab === 'trips' && (
+                  <TripManagement
+                    trips={trips}
+                    parcels={parcels}
+                    onAddTrip={handleAddTrip}
+                    onUpdateTripStatus={handleUpdateTripStatus}
+                    onUpdateTripSettlement={handleUpdateTripSettlement}
+                    onAddTripExpense={handleAddTripExpense}
+                    userRole={userRole}
+                    lang={lang}
+                    onMarkParcelNotified={handleMarkParcelNotified}
+                  />
+                )}
+                {currentTab === 'claims' && (
+                  <ClaimsManagement
+                    claims={claims}
+                    parcels={parcels}
+                    onAddClaim={handleAddClaim}
+                    onUpdateClaimStatus={handleUpdateClaimStatus}
+                    userRole={userRole}
+                    lang={lang}
+                    preselectedParcel={parcelForClaim}
+                  />
+                )}
+                {currentTab === 'android-studio' && <AndroidStudioHub lang={lang} />}
+              </div>
+
+              {/* RIGHT COLUMN (3 cols): Sponsored Rates & Online Personnel Contacts */}
+              <div className="hidden lg:block lg:col-span-3 sticky top-20">
+                <FacebookSidebarRight
+                  pricingConfig={pricingConfig}
+                  weightUnit={weightUnit}
+                  trips={trips}
+                  parcels={parcels}
+                  onOpenPricingModal={() => setIsPricingModalOpen(true)}
+                  onOpenNotificationModal={(parcel, mode) => setNotificationModalData({ parcel, mode })}
+                  lang={lang}
+                />
+              </div>
+            </div>
           </div>
         )}
       </main>
@@ -589,6 +689,17 @@ export default function App() {
         lang={lang}
       />
 
+      {/* Customer Experience Auto-Notification Modal (Viber / SMS) */}
+      <CustomerNotificationModal
+        isOpen={!!notificationModalData}
+        onClose={() => setNotificationModalData(null)}
+        parcel={notificationModalData?.parcel || null}
+        mode={notificationModalData?.mode || 'INTAKE'}
+        weightUnit={weightUnit}
+        lang={lang}
+        onMarkNotified={handleMarkParcelNotified}
+      />
+
       {/* Single APK Account Switcher & Login Modal */}
       <LoginModal
         isOpen={isLoginModalOpen}
@@ -610,33 +721,39 @@ export default function App() {
         lang={lang}
       />
 
-      {/* Floating Gemini AI Chat Bot Trigger Button */}
+      {/* Floating Facebook Messenger Style AI Chat Bot Trigger Button */}
       <div className="fixed bottom-6 right-6 z-40">
         <button
           onClick={() => setIsChatBotOpen(true)}
-          className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 font-bold text-xs sm:text-sm shadow-xl shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-105 active:scale-95 transition-all"
+          className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-[#0084FF] to-[#1877F2] hover:from-[#0077e6] hover:to-[#166fe5] text-white font-bold text-xs sm:text-sm shadow-xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          title="Open BMK Messenger AI Copilot"
         >
           <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-950 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-950"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
           </span>
-          <span className="flex items-center gap-1.5 font-bold">
-            <Sparkles className="w-4 h-4 text-slate-950 animate-pulse group-hover:rotate-12 transition-transform" />
-            <span>{lang === 'my' ? 'BMK AI လက်ထောက်' : 'BMK AI Copilot'}</span>
+          <MessageCircle className="w-5 h-5 fill-white text-white group-hover:scale-110 transition-transform" />
+          <span className="font-bold">
+            {lang === 'my' ? 'BMK Messenger' : 'BMK Messenger'}
           </span>
-          <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-full bg-slate-950/20 text-slate-950 text-[10px] font-mono">
+          <span className="hidden sm:inline-block px-1.5 py-0.2 rounded-full bg-white/20 text-white text-[10px] font-mono">
             Gemini
           </span>
         </button>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-4 text-xs text-slate-500 text-center">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>BMK Express Car Gate (Mandalay ⇄ Kalay) Express Logistics System</span>
-          <span>
+      {/* Facebook-style Quiet Footer */}
+      <footer className="border-t border-[#e4e6eb] bg-white py-3 text-xs text-[#65676b] text-center mt-auto">
+        <div className="max-w-[1920px] mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-[#1877F2] text-white flex items-center justify-center font-black text-xs">b</span>
+            <span>BMK Express Logistics (မန္တလေး ⇄ ကလေး)</span>
+            <span>·</span>
+            <span className="text-emerald-600 font-medium">Cloud Firestore Active</span>
+          </div>
+          <div className="text-[11px]">
             {weightUnit === 'VISS' ? '၁ ပိဿာ' : '1 Kg'} = {pricingConfig.customerRatePerViss} MMK/viss (~ {(pricingConfig.customerRatePerViss / 1.63293).toFixed(1)} MMK/kg) · ကားခ {pricingConfig.truckRatePerViss} MMK · အလုပ်သမား {pricingConfig.mdyLaborPerViss + pricingConfig.kalayLaborPerViss} MMK
-          </span>
+          </div>
         </div>
       </footer>
     </div>

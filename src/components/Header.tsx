@@ -1,20 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AppUserAccount, UserRole, WeightUnit } from '../types/bmk';
 import { 
-  Plus, 
-  Shield, 
+  Home, 
+  Package, 
+  Truck, 
+  ShieldAlert, 
   Smartphone, 
-  Monitor, 
-  Globe, 
+  Search, 
+  MessageCircle, 
+  Bell, 
+  Plus, 
   Scale, 
   Settings, 
+  Globe, 
+  ChevronDown, 
+  LogOut, 
   UserCheck, 
-  Truck, 
-  MapPin, 
-  Lock,
-  ChevronDown,
-  LogOut,
-  Sparkles
+  Shield, 
+  Sparkles,
+  MapPin,
+  CheckCircle2,
+  X
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -50,365 +56,316 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPricingModal,
   onOpenChatBot,
 }) => {
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const isAdmin = currentUser.role === 'ADMIN';
-  const isMandalay = currentUser.role === 'MANDALAY_STAFF';
-  const isKalay = currentUser.role === 'KALAY_STAFF';
-  const isDriver = currentUser.role === 'DRIVER';
 
   return (
-    <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
-      {/* 3-Zone Top Bar Contract */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4 md:gap-8 h-16">
-        {/* Zone 1: Wordmark & Single APK Badge */}
-        <div className="flex items-center gap-3 shrink-0">
-          <img
-            src="/src/assets/images/bmk_gate_emblem_1792773077611.jpg"
-            alt="BMK Emblem"
-            referrerPolicy="no-referrer"
-            className="w-9 h-9 rounded-lg object-cover ring-1 ring-amber-500/30"
-          />
-          <div className="flex flex-col">
-            <button
-              onClick={() => onTabChange(isAdmin ? 'dashboard' : isKalay ? 'trips' : 'parcels')}
-              className="text-left font-bold tracking-tight text-white text-base sm:text-lg whitespace-nowrap hover:text-amber-400 transition-colors flex items-center gap-1.5"
-            >
-              <span>BMK Express</span>
-              <span className="text-amber-400 font-normal text-xs sm:text-sm hidden sm:inline">Mandalay ⇄ Kalay</span>
-            </button>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[10px] font-mono text-emerald-400 font-semibold leading-none flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                Cloud: pos-sync-511822
-              </span>
-              <span className="text-slate-600 text-[10px]">·</span>
-              <span className="text-[10px] font-mono text-slate-400">Offline Persistence</span>
-            </div>
+    <header className="sticky top-0 z-50 bg-white border-b border-[#e4e6eb] shadow-sm select-none">
+      {/* Facebook Desktop & Tablet Top Bar */}
+      <div className="max-w-[1920px] mx-auto px-4 h-14 flex items-center justify-between gap-2 sm:gap-4">
+        {/* LEFT ZONE: Facebook Logo + Search Bar */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Facebook Blue Circle Logo with BMK styling */}
+          <button
+            onClick={() => onTabChange('dashboard')}
+            className="w-10 h-10 rounded-full bg-[#1877F2] hover:bg-[#166fe5] text-white flex items-center justify-center font-black text-xl shadow cursor-pointer transition-transform active:scale-95 shrink-0"
+            title="BMK Express - Home"
+          >
+            <span>b</span>
+          </button>
+
+          {/* Facebook Search Pill */}
+          <div className="relative hidden sm:flex items-center">
+            <Search className="w-4 h-4 text-[#65676b] absolute left-3 pointer-events-none" />
+            <input
+              type="text"
+              placeholder={lang === 'my' ? 'BMK Express တွင် ရှာဖွေပါ...' : 'Search BMK Express...'}
+              onClick={() => onTabChange('parcels')}
+              className="bg-[#f0f2f5] hover:bg-[#e4e6eb] focus:bg-white focus:ring-2 focus:ring-[#1877F2] focus:outline-none rounded-full pl-9 pr-4 py-2 text-xs sm:text-sm text-[#050505] placeholder-[#65676b] w-48 md:w-60 lg:w-64 transition-all"
+            />
           </div>
         </div>
 
-        {/* Zone 2: 4-5 Clean single-line text navigation links with Permission Awareness */}
-        <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-slate-300">
-          {/* Dashboard: Admin only */}
+        {/* CENTER ZONE: Facebook 5 Main Navigation Tabs */}
+        <nav className="hidden md:flex items-center justify-center flex-1 max-w-2xl h-full px-2">
+          {/* Tab 1: Home / Dashboard */}
           <button
             onClick={() => onTabChange('dashboard')}
-            className={`whitespace-nowrap shrink-0 transition-colors py-1 flex items-center gap-1.5 ${
-              currentTab === 'dashboard'
-                ? 'text-amber-400 border-b-2 border-amber-400 font-semibold'
-                : 'hover:text-white'
+            className={`flex-1 h-full flex flex-col items-center justify-center relative hover:bg-[#f2f2f2] rounded-lg transition-colors cursor-pointer group ${
+              currentTab === 'dashboard' ? 'text-[#1877F2]' : 'text-[#65676b]'
             }`}
+            title={lang === 'my' ? 'ပင်မစာမျက်နှာ (P&L Dashboard)' : 'Home / P&L'}
           >
-            <span>{lang === 'my' ? 'ဘဏ္ဍာရေး & အမြတ်' : 'P&L Dashboard'}</span>
-            {!isAdmin && (
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-normal">
-                Admin
-              </span>
+            <Home className="w-6 h-6 stroke-[2.2]" />
+            {currentTab === 'dashboard' && (
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#1877F2] rounded-t-full" />
             )}
           </button>
 
-          {/* Parcels: Primary for Mandalay & Admin */}
+          {/* Tab 2: Parcels / Marketplace */}
           <button
             onClick={() => onTabChange('parcels')}
-            className={`whitespace-nowrap shrink-0 transition-colors py-1 flex items-center gap-1.5 ${
-              currentTab === 'parcels'
-                ? 'text-amber-400 border-b-2 border-amber-400 font-semibold'
-                : 'hover:text-white'
+            className={`flex-1 h-full flex flex-col items-center justify-center relative hover:bg-[#f2f2f2] rounded-lg transition-colors cursor-pointer group ${
+              currentTab === 'parcels' ? 'text-[#1877F2]' : 'text-[#65676b]'
             }`}
+            title={lang === 'my' ? 'ကုန်စည်စာရင်း (Parcels)' : 'Cargo Parcels'}
           >
-            <span>{lang === 'my' ? 'ကုန်စည်စာရင်း & ဘောင်ချာ' : 'Parcels & Receipts'}</span>
-            {isMandalay && (
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-400 font-normal">
-                MDY Gate
-              </span>
+            <Package className="w-6 h-6 stroke-[2.2]" />
+            {currentTab === 'parcels' && (
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#1877F2] rounded-t-full" />
             )}
           </button>
 
-          {/* Trips: Crucial for Kalay & Drivers & Admin */}
+          {/* Tab 3: Trips / Fleet */}
           <button
             onClick={() => onTabChange('trips')}
-            className={`whitespace-nowrap shrink-0 transition-colors py-1 flex items-center gap-1.5 ${
-              currentTab === 'trips'
-                ? 'text-amber-400 border-b-2 border-amber-400 font-semibold'
-                : 'hover:text-white'
+            className={`flex-1 h-full flex flex-col items-center justify-center relative hover:bg-[#f2f2f2] rounded-lg transition-colors cursor-pointer group ${
+              currentTab === 'trips' ? 'text-[#1877F2]' : 'text-[#65676b]'
             }`}
+            title={lang === 'my' ? '၁၂ ဘီးကား ခရီးစဉ်များ (Fleet)' : '12-Wheel Fleet'}
           >
-            <span>{lang === 'my' ? '၁၂ ဘီးကားခရီးစဉ်' : '12-Wheel Trips'}</span>
-            {isKalay && (
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-400 font-normal">
-                ကားဆိုက် / ချ
-              </span>
+            <Truck className="w-6 h-6 stroke-[2.2]" />
+            {currentTab === 'trips' && (
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#1877F2] rounded-t-full" />
             )}
           </button>
 
-          {/* Claims */}
+          {/* Tab 4: Claims / Safety Center */}
           <button
             onClick={() => onTabChange('claims')}
-            className={`whitespace-nowrap shrink-0 transition-colors py-1 flex items-center gap-1.5 ${
-              currentTab === 'claims'
-                ? 'text-amber-400 border-b-2 border-amber-400 font-semibold'
-                : 'hover:text-white'
+            className={`flex-1 h-full flex flex-col items-center justify-center relative hover:bg-[#f2f2f2] rounded-lg transition-colors cursor-pointer group ${
+              currentTab === 'claims' ? 'text-[#1877F2]' : 'text-[#65676b]'
             }`}
+            title={lang === 'my' ? 'လျော်ကြေးစီမံခန့်ခွဲမှု (Claims)' : 'Claims Management'}
           >
-            <span>{lang === 'my' ? 'ပျောက်ဆုံး/ပျက်စီး လျော်ကြေး' : 'Claims & Losses'}</span>
+            <ShieldAlert className="w-6 h-6 stroke-[2.2]" />
+            {currentTab === 'claims' && (
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#1877F2] rounded-t-full" />
+            )}
           </button>
 
-          {/* Android Studio Hub */}
+          {/* Tab 5: Android Studio Hub */}
           <button
             onClick={() => onTabChange('android-studio')}
-            className={`whitespace-nowrap shrink-0 transition-colors py-1 flex items-center gap-1.5 ${
-              currentTab === 'android-studio'
-                ? 'text-emerald-400 border-b-2 border-emerald-400 font-semibold'
-                : 'hover:text-white text-emerald-400/90'
+            className={`flex-1 h-full flex flex-col items-center justify-center relative hover:bg-[#f2f2f2] rounded-lg transition-colors cursor-pointer group ${
+              currentTab === 'android-studio' ? 'text-[#1877F2]' : 'text-[#65676b]'
             }`}
+            title={lang === 'my' ? 'Android Studio One APK Hub' : 'One APK Code'}
           >
-            <span>One APK Code & Auth</span>
+            <Smartphone className="w-6 h-6 stroke-[2.2]" />
+            {currentTab === 'android-studio' && (
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#1877F2] rounded-t-full" />
+            )}
           </button>
         </nav>
 
-        {/* Zone 3: AI Chat Bot, Active Account Pill & Primary Action button */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Gemini AI Assistant Button */}
+        {/* RIGHT ZONE: Facebook Circular Action Buttons & Profile */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* Quick Book Cargo Button (Facebook + / Create button) */}
+          <button
+            onClick={onOpenBookingModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#e7f3ff] hover:bg-[#d8eaff] text-[#1877F2] font-semibold text-xs sm:text-sm transition-colors cursor-pointer shadow-sm"
+            title="Book Cargo Voucher"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span className="hidden sm:inline font-bold">
+              {lang === 'my' ? 'ဘောင်ချာဖွင့်' : 'Book'}
+            </span>
+          </button>
+
+          {/* Facebook Messenger Icon Button (Opens Gemini AI Chat Bot) */}
           <button
             onClick={onOpenChatBot}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-amber-400/20 to-amber-500/10 hover:from-amber-500/30 hover:to-amber-400/30 border border-amber-400/40 text-amber-300 hover:text-white text-xs font-semibold transition-all shadow-sm shadow-amber-500/5 group"
-            title="Gemini AI ကုန်စည်ပို့ဆောင်ရေး လက်ထောက် (Chat Bot)"
+            className="w-10 h-10 rounded-full bg-[#e4e6eb] hover:bg-[#d8dadf] text-[#050505] flex items-center justify-center transition-colors cursor-pointer relative"
+            title="BMK Gemini AI Copilot (Messenger)"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse group-hover:rotate-12 transition-transform" />
-            <span className="hidden sm:inline">AI Chat Bot</span>
-            <span className="sm:hidden">AI</span>
+            <MessageCircle className="w-5 h-5 fill-[#050505] text-[#050505]" />
+            <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-[#fa383e] text-white text-[10px] font-bold ring-2 ring-white">
+              AI
+            </span>
           </button>
 
-          {/* Active Account Switcher Button */}
+          {/* Viss ⇄ Kg Unit Switcher Button */}
           <button
-            onClick={onOpenLoginModal}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-750 border border-slate-700 hover:border-amber-400/40 text-left transition-all group"
-            title="အကောင့်ပြောင်းရန် နှိပ်ပါ (Switch User / Role)"
+            onClick={onToggleWeightUnit}
+            className="w-10 h-10 rounded-full bg-[#e4e6eb] hover:bg-[#d8dadf] text-[#050505] flex items-center justify-center text-[11px] font-bold transition-colors cursor-pointer"
+            title={weightUnit === 'VISS' ? 'လက်ရှိ: ပိဿာ (Kg သို့ ပြောင်းရန် နှိပ်ပါ)' : 'Current: Kg (Switch to Viss)'}
           >
-            <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${currentUser.avatarColor} flex items-center justify-center text-white font-bold text-xs shadow`}>
-              {isAdmin && <Shield className="w-3.5 h-3.5" />}
-              {isMandalay && 'MDY'}
-              {isKalay && 'KLY'}
-              {isDriver && <Truck className="w-3.5 h-3.5" />}
-            </div>
-
-            <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-bold text-white group-hover:text-amber-400 transition-colors leading-tight">
-                {currentUser.name}
-              </span>
-              <span className="text-[10px] text-amber-300 font-medium leading-tight">
-                {lang === 'my' ? currentUser.roleTitleMy : currentUser.roleTitleEn}
-              </span>
-            </div>
-
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-colors" />
+            <span className="font-mono text-[#1877F2] font-bold">
+              {weightUnit === 'VISS' ? 'ပိဿာ' : 'Kg'}
+            </span>
           </button>
 
-          {/* Action button: Contextual to Role */}
-          {currentUser.permissions.canBookParcel ? (
+          {/* Admin Pricing Settings Button */}
+          {isAdmin && (
             <button
-              onClick={onOpenBookingModal}
-              className="flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 rounded-lg hover:from-amber-300 hover:to-amber-400 active:scale-95 transition-all shadow-md shadow-amber-500/10 whitespace-nowrap shrink-0"
+              onClick={onOpenPricingModal}
+              className="w-10 h-10 rounded-full bg-[#e4e6eb] hover:bg-[#d8dadf] text-[#050505] flex items-center justify-center transition-colors cursor-pointer hidden sm:flex"
+              title="Admin Pricing Rates"
             >
-              <Plus className="w-4 h-4" />
-              <span>{lang === 'my' ? 'ပစ္စည်းလက်ခံမည်' : 'Book Parcel'}</span>
-            </button>
-          ) : isKalay ? (
-            <button
-              onClick={() => onTabChange('trips')}
-              className="flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg hover:from-purple-500 hover:to-purple-600 active:scale-95 transition-all shadow-md whitespace-nowrap shrink-0"
-            >
-              <Truck className="w-4 h-4" />
-              <span>{lang === 'my' ? 'ကားဆိုက်ရောက်စစ်ဆေး' : 'Kalay Check-in'}</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => onTabChange('trips')}
-              className="flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-slate-800 to-slate-700 border border-slate-600 rounded-lg hover:bg-slate-750 transition-all whitespace-nowrap shrink-0"
-            >
-              <span>{lang === 'my' ? 'ခရီးစဉ်ကြည့်ရှုမည်' : 'View Trips'}</span>
+              <Settings className="w-5 h-5" />
             </button>
           )}
+
+          {/* Language Toggle Button */}
+          <button
+            onClick={onToggleLang}
+            className="w-10 h-10 rounded-full bg-[#e4e6eb] hover:bg-[#d8dadf] text-[#050505] flex items-center justify-center transition-colors cursor-pointer"
+            title="Toggle Language"
+          >
+            <span className="text-xs font-bold">
+              {lang === 'my' ? '🇲🇲' : '🇬🇧'}
+            </span>
+          </button>
+
+          {/* Facebook Profile Avatar Circle */}
+          <div className="relative">
+            <button
+              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1877F2] to-sky-600 text-white flex items-center justify-center font-bold text-sm shadow cursor-pointer relative hover:opacity-95 transition-opacity"
+              title={`${currentUser.name} (${currentUser.role})`}
+            >
+              <span>{currentUser.name.slice(0, 1)}</span>
+              {/* Green Active Dot */}
+              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#31a24c] ring-2 ring-white" />
+            </button>
+
+            {/* Facebook Profile Dropdown Menu */}
+            {isProfileMenuOpen && (
+              <div className="absolute right-0 top-12 z-50 w-72 bg-white rounded-2xl shadow-2xl border border-[#e4e6eb] p-3 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                {/* Profile Card Header */}
+                <div
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    onOpenLoginModal();
+                  }}
+                  className="p-3 rounded-xl hover:bg-[#f2f2f2] transition-colors cursor-pointer flex items-center gap-3 border border-[#e4e6eb]"
+                >
+                  <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${currentUser.avatarColor} text-white flex items-center justify-center font-bold text-base shadow`}>
+                    {currentUser.name.slice(0, 1)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-bold text-sm text-[#050505] block truncate">
+                      {currentUser.name}
+                    </span>
+                    <span className="text-xs text-[#65676b] block">
+                      {lang === 'my' ? currentUser.roleTitleMy : currentUser.roleTitleEn}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Role Switcher Section */}
+                <div className="space-y-1.5 pt-1 border-t border-[#e4e6eb]">
+                  <span className="text-[11px] font-bold text-[#65676b] px-2 uppercase tracking-wider block">
+                    {lang === 'my' ? 'အကောင့်ခွဲ ရွေးချယ်ရန် (Single APK):' : 'Switch Role:'}
+                  </span>
+                  {[
+                    { role: 'ADMIN' as UserRole, name: 'ဦးကိုကို (Admin HQ)', title: 'ဂိတ်ပိုင်ရှင်' },
+                    { role: 'MANDALAY_STAFF' as UserRole, name: 'ကိုအောင်မျိုး (မန္တလေး)', title: 'တင်ရေးတာဝန်ခံ' },
+                    { role: 'KALAY_STAFF' as UserRole, name: 'မသီတာ (ကလေး)', title: 'ချရေး & COD တာဝန်ခံ' },
+                    { role: 'DRIVER' as UserRole, name: 'ကိုဝင်းဇော် (ယာဉ်မောင်း)', title: '၁၂ ဘီး ယာဉ်မောင်း' },
+                  ].map((r) => (
+                    <button
+                      key={r.role}
+                      onClick={() => {
+                        onQuickRoleSwitch(r.role);
+                        setIsProfileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between p-2 rounded-lg text-xs transition-colors cursor-pointer ${
+                        currentUser.role === r.role
+                          ? 'bg-[#e7f3ff] text-[#1877F2] font-bold'
+                          : 'hover:bg-[#f2f2f2] text-[#050505]'
+                      }`}
+                    >
+                      <div className="text-left">
+                        <span className="block font-semibold">{r.name}</span>
+                        <span className="text-[10px] text-[#65676b]">{r.title}</span>
+                      </div>
+                      {currentUser.role === r.role && <CheckCircle2 className="w-4 h-4 text-[#1877F2]" />}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Login Modal trigger */}
+                <div className="pt-2 border-t border-[#e4e6eb]">
+                  <button
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      onOpenLoginModal();
+                    }}
+                    className="w-full py-2 px-3 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] text-[#050505] font-semibold text-xs transition-colors text-center cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <UserCheck className="w-4 h-4" />
+                    <span>{lang === 'my' ? 'PIN ဖြင့် လော့ဂ်အင်ဝင်မည်' : 'PIN Login Dialog'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Sub-bar: 1-Click Role Simulator, Location Badge, Viss ⇄ Kg, Admin Rates & Language */}
-      <div className="border-t border-slate-800/80 bg-slate-950/70 px-4 sm:px-6 py-2 text-xs">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          {/* Mobile view navigation pill-less buttons */}
-          <div className="flex lg:hidden items-center gap-1.5 overflow-x-auto py-0.5">
-            <button
-              onClick={() => onTabChange('dashboard')}
-              className={`px-2.5 py-1 rounded text-xs whitespace-nowrap ${currentTab === 'dashboard' ? 'bg-slate-800 text-amber-400 font-medium' : 'text-slate-400'}`}
-            >
-              P&L
-            </button>
-            <button
-              onClick={() => onTabChange('parcels')}
-              className={`px-2.5 py-1 rounded text-xs whitespace-nowrap ${currentTab === 'parcels' ? 'bg-slate-800 text-amber-400 font-medium' : 'text-slate-400'}`}
-            >
-              {lang === 'my' ? 'ကုန်စည်များ' : 'Parcels'}
-            </button>
-            <button
-              onClick={() => onTabChange('trips')}
-              className={`px-2.5 py-1 rounded text-xs whitespace-nowrap ${currentTab === 'trips' ? 'bg-slate-800 text-amber-400 font-medium' : 'text-slate-400'}`}
-            >
-              {lang === 'my' ? '၁၂ ဘီးကား' : 'Trips'}
-            </button>
-            <button
-              onClick={() => onTabChange('claims')}
-              className={`px-2.5 py-1 rounded text-xs whitespace-nowrap ${currentTab === 'claims' ? 'bg-slate-800 text-amber-400 font-medium' : 'text-slate-400'}`}
-            >
-              {lang === 'my' ? 'လျော်ကြေး' : 'Claims'}
-            </button>
-            <button
-              onClick={() => onTabChange('android-studio')}
-              className={`px-2.5 py-1 rounded text-xs whitespace-nowrap ${currentTab === 'android-studio' ? 'bg-emerald-950 text-emerald-400 font-medium' : 'text-slate-400'}`}
-            >
-              One APK Code
-            </button>
-            <button
-              onClick={onOpenChatBot}
-              className="px-2.5 py-1 rounded text-xs whitespace-nowrap bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1 font-semibold"
-            >
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              <span>AI Bot</span>
-            </button>
-          </div>
+      {/* Facebook Mobile Tab Navigation (Under Header) */}
+      <div className="flex md:hidden items-center justify-around border-t border-[#e4e6eb] h-12 bg-white">
+        <button
+          onClick={() => onTabChange('dashboard')}
+          className={`flex-1 h-full flex items-center justify-center relative cursor-pointer ${
+            currentTab === 'dashboard' ? 'text-[#1877F2]' : 'text-[#65676b]'
+          }`}
+        >
+          <Home className="w-5 h-5 stroke-[2.2]" />
+          {currentTab === 'dashboard' && (
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#1877F2] rounded-t-full" />
+          )}
+        </button>
 
-          {/* Left: Quick Role Selector (For testing how 1 single APK reacts to different accounts) */}
-          <div className="flex items-center gap-2 text-slate-400 flex-wrap">
-            <span className="flex items-center gap-1 font-medium text-slate-300">
-              <UserCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>{lang === 'my' ? 'အကောင့်ခွဲစနစ်:' : 'Active Role:'}</span>
-            </span>
+        <button
+          onClick={() => onTabChange('parcels')}
+          className={`flex-1 h-full flex items-center justify-center relative cursor-pointer ${
+            currentTab === 'parcels' ? 'text-[#1877F2]' : 'text-[#65676b]'
+          }`}
+        >
+          <Package className="w-5 h-5 stroke-[2.2]" />
+          {currentTab === 'parcels' && (
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#1877F2] rounded-t-full" />
+          )}
+        </button>
 
-            <div className="inline-flex rounded-lg bg-slate-900 border border-slate-800 p-0.5">
-              <button
-                onClick={() => onQuickRoleSwitch('ADMIN')}
-                className={`px-2.5 py-1 rounded-md text-xs transition-colors whitespace-nowrap font-medium ${
-                  currentUser.role === 'ADMIN'
-                    ? 'bg-amber-500 text-slate-950 font-bold'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="ဦးကိုကို (ဂိတ်ပိုင်ရှင် / Admin HQ)"
-              >
-                {lang === 'my' ? 'ဂိတ်ပိုင်ရှင် (Admin)' : 'Admin (HQ)'}
-              </button>
-              <button
-                onClick={() => onQuickRoleSwitch('MANDALAY_STAFF')}
-                className={`px-2.5 py-1 rounded-md text-xs transition-colors whitespace-nowrap font-medium ${
-                  currentUser.role === 'MANDALAY_STAFF'
-                    ? 'bg-sky-500 text-slate-950 font-bold'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="ကိုအောင်မျိုး (မန္တလေးဂိတ် တင်ရေးတာဝန်ခံ)"
-              >
-                {lang === 'my' ? 'မန္တလေးဂိတ်' : 'MDY Gate'}
-              </button>
-              <button
-                onClick={() => onQuickRoleSwitch('KALAY_STAFF')}
-                className={`px-2.5 py-1 rounded-md text-xs transition-colors whitespace-nowrap font-medium ${
-                  currentUser.role === 'KALAY_STAFF'
-                    ? 'bg-purple-500 text-slate-950 font-bold'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="မသီတာ (ကလေးဂိတ် ချရေး & COD တာဝန်ခံ)"
-              >
-                {lang === 'my' ? 'ကလေးဂိတ်' : 'Kalay Gate'}
-              </button>
-              <button
-                onClick={() => onQuickRoleSwitch('DRIVER')}
-                className={`px-2.5 py-1 rounded-md text-xs transition-colors whitespace-nowrap font-medium ${
-                  currentUser.role === 'DRIVER'
-                    ? 'bg-emerald-500 text-slate-950 font-bold'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="ကိုဝင်းဇော် (၁၂ ဘီး ယာဉ်မောင်း)"
-              >
-                {lang === 'my' ? 'ယာဉ်မောင်း' : 'Driver'}
-              </button>
-            </div>
+        <button
+          onClick={() => onTabChange('trips')}
+          className={`flex-1 h-full flex items-center justify-center relative cursor-pointer ${
+            currentTab === 'trips' ? 'text-[#1877F2]' : 'text-[#65676b]'
+          }`}
+        >
+          <Truck className="w-5 h-5 stroke-[2.2]" />
+          {currentTab === 'trips' && (
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#1877F2] rounded-t-full" />
+          )}
+        </button>
 
-            {/* Location Pill */}
-            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[11px] text-slate-400">
-              <MapPin className="w-3 h-3 text-slate-500" />
-              <span>{lang === 'my' ? currentUser.gateLocationNameMy : currentUser.gateLocation}</span>
-            </span>
+        <button
+          onClick={() => onTabChange('claims')}
+          className={`flex-1 h-full flex items-center justify-center relative cursor-pointer ${
+            currentTab === 'claims' ? 'text-[#1877F2]' : 'text-[#65676b]'
+          }`}
+        >
+          <ShieldAlert className="w-5 h-5 stroke-[2.2]" />
+          {currentTab === 'claims' && (
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#1877F2] rounded-t-full" />
+          )}
+        </button>
 
-            {/* Admin Custom Rates Trigger */}
-            {currentUser.permissions.canConfigurePricing && (
-              <button
-                onClick={onOpenPricingModal}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-900 border border-amber-500/50 text-amber-400 hover:bg-amber-500/10 font-medium transition-colors"
-                title="Configure custom customer rate, truck rate, and labor fees"
-              >
-                <Settings className="w-3 h-3" />
-                <span>{lang === 'my' ? 'ဂိတ်နှုန်းထားသတ်မှတ်ရန်' : 'Edit Rates'}</span>
-              </button>
-            )}
-          </div>
-
-          {/* Right: Weight Unit Toggle (Viss ⇄ Kg), Mobile Viewport, Language */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Weight Unit Toggle: Viss ⇄ Kg */}
-            <div className="inline-flex rounded-md bg-slate-900 border border-slate-800 p-0.5">
-              <button
-                onClick={() => weightUnit !== 'VISS' && onToggleWeightUnit()}
-                className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors flex items-center gap-1 ${
-                  weightUnit === 'VISS'
-                    ? 'bg-amber-400 text-slate-950'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Switch weight unit to Myanmar Viss (ပိဿာ)"
-              >
-                <Scale className="w-3 h-3" />
-                <span>{lang === 'my' ? 'ပိဿာ (Viss)' : 'Viss'}</span>
-              </button>
-              <button
-                onClick={() => weightUnit !== 'KG' && onToggleWeightUnit()}
-                className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors flex items-center gap-1 ${
-                  weightUnit === 'KG'
-                    ? 'bg-amber-400 text-slate-950'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Switch weight unit to Kilograms (Kg)"
-              >
-                <span>ကီလို (Kg)</span>
-              </button>
-            </div>
-
-            {/* Mobile / Desktop Viewport switch */}
-            <button
-              onClick={onToggleMobileView}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded border transition-colors ${
-                isMobileView
-                  ? 'border-cyan-500 text-cyan-400 bg-cyan-950/40'
-                  : 'border-slate-800 text-slate-400 hover:text-slate-200 bg-slate-900'
-              }`}
-              title="Toggle Android Device Frame Simulation"
-            >
-              {isMobileView ? (
-                <>
-                  <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Mobile</span>
-                </>
-              ) : (
-                <>
-                  <Monitor className="w-3.5 h-3.5" />
-                  <span>Desktop</span>
-                </>
-              )}
-            </button>
-
-            {/* Language toggle */}
-            <button
-              onClick={onToggleLang}
-              className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300 hover:text-white"
-            >
-              <Globe className="w-3.5 h-3.5 text-amber-400" />
-              <span>{lang === 'my' ? 'မြန်မာ 🇲🇲' : 'EN 🇬🇧'}</span>
-            </button>
-          </div>
-        </div>
+        <button
+          onClick={() => onTabChange('android-studio')}
+          className={`flex-1 h-full flex items-center justify-center relative cursor-pointer ${
+            currentTab === 'android-studio' ? 'text-[#1877F2]' : 'text-[#65676b]'
+          }`}
+        >
+          <Smartphone className="w-5 h-5 stroke-[2.2]" />
+          {currentTab === 'android-studio' && (
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#1877F2] rounded-t-full" />
+          )}
+        </button>
       </div>
     </header>
   );

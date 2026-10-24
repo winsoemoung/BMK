@@ -114,6 +114,8 @@ export interface Parcel {
   updatedAt: string;
   bookedByStaff: string;
   notes?: string;
+  notifiedIntakeAt?: string;    // Timestamp when booking Viber/SMS notification was sent
+  notifiedArrivalAt?: string;   // Timestamp when Kalay arrival notification was sent
 }
 
 export interface DriverExpenseEntry {

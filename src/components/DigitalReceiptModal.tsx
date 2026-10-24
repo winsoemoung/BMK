@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Parcel, WeightUnit } from '../types/bmk';
-import { formatMMK, formatNumber, rateVissToKg, vissToKg, generateQrDataUrl, generateViberReceiptText, generateSmsReceiptText, getStatusBurmese } from '../utils/formatters';
-import { X, Copy, Check, Printer, Share2, MessageSquare, Bluetooth, Tag, Receipt } from 'lucide-react';
+import { formatMMK, formatNumber, rateVissToKg, vissToKg, generateQrDataUrl, generateViberReceiptText, generateSmsReceiptText, getStatusBurmese, openViberShare, openSmsApp } from '../utils/formatters';
+import { X, Copy, Check, Printer, Share2, MessageSquare, Bluetooth, Tag, Receipt, Send, BellRing } from 'lucide-react';
 
 interface DigitalReceiptModalProps {
   parcel: Parcel | null;
@@ -66,19 +66,19 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden my-6">
-        {/* Modal Top Bar */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 bg-slate-950">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto font-sans">
+      <div className="relative w-full max-w-lg bg-white border border-[#e4e6eb] rounded-2xl shadow-2xl overflow-hidden my-6">
+        {/* Facebook Modal Top Bar */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e4e6eb] bg-[#f0f2f5]">
           <div className="flex items-center gap-2">
             {/* View Switcher: Voucher Slip vs Bluetooth Sticker */}
-            <div className="inline-flex rounded-lg bg-slate-900 border border-slate-800 p-0.5 text-xs">
+            <div className="inline-flex rounded-lg bg-white border border-[#e4e6eb] p-0.5 text-xs shadow-xs">
               <button
                 onClick={() => setActiveView('voucher')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold transition-all cursor-pointer ${
                   activeView === 'voucher'
-                    ? 'bg-amber-400 text-slate-950 font-bold'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-[#1877F2] text-white shadow-xs'
+                    : 'text-[#65676b] hover:text-[#050505]'
                 }`}
               >
                 <Receipt className="w-3.5 h-3.5" />
@@ -86,10 +86,10 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
               </button>
               <button
                 onClick={() => setActiveView('thermal_sticker')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold transition-all cursor-pointer ${
                   activeView === 'thermal_sticker'
-                    ? 'bg-amber-400 text-slate-950 font-bold'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-[#1877F2] text-white shadow-xs'
+                    : 'text-[#65676b] hover:text-[#050505]'
                 }`}
               >
                 <Tag className="w-3.5 h-3.5" />
@@ -100,19 +100,19 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+            className="w-8 h-8 rounded-full bg-[#e4e6eb] hover:bg-[#d8dadf] text-[#050505] flex items-center justify-center cursor-pointer transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-4">
+        <div className="p-5 sm:p-6 space-y-4">
           {/* VIEW 1: Standard Customer Voucher Slip */}
           {activeView === 'voucher' && (
             <div
               id="printable-receipt"
-              className="p-5 rounded-xl bg-white text-slate-900 font-sans shadow-inner border border-slate-200 text-xs space-y-3"
+              className="p-5 rounded-xl bg-white text-slate-900 font-sans shadow-xs border border-[#ccd0d5] text-xs space-y-3"
             >
               {/* Header */}
               <div className="text-center border-b border-dashed border-slate-300 pb-3 space-y-1">
@@ -150,9 +150,6 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
                   <span className="font-bold text-slate-900 block text-xs">
                     {getStatusBurmese(parcel.status)}
                   </span>
-                  <span className="text-[10px] text-slate-500 block">
-                    နေ့စွဲ: {new Date(parcel.createdAt).toLocaleDateString('my-MM')}
-                  </span>
                   <span
                     className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
                       parcel.paymentStatus === 'PAID'
@@ -163,142 +160,130 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
                     }`}
                   >
                     {parcel.paymentStatus === 'PAID'
-                      ? 'ငွေရှင်းပြီး (Paid)'
+                      ? 'ငွေရှင်းပြီး (PAID)'
                       : parcel.paymentStatus === 'COD'
                       ? 'ကလေးရောက်မှငွေချေ (COD)'
-                      : 'မရှင်းရသေး (Unpaid)'}
+                      : 'မရှင်းရသေး'}
                   </span>
                 </div>
               </div>
 
               {/* Sender & Receiver Info */}
-              <div className="space-y-2 border-b border-dashed border-slate-300 pb-3">
-                <div>
-                  <span className="text-slate-500 block font-semibold text-[10px]">
-                    📤 ပို့သူ (မန္တလေး):
-                  </span>
-                  <div className="font-bold text-slate-900">{parcel.senderName} ({parcel.senderPhone})</div>
-                  <div className="text-[10px] text-slate-600">{parcel.senderAddress}</div>
+              <div className="grid grid-cols-2 gap-3 py-2 border-b border-dashed border-slate-300 text-[11px]">
+                <div className="space-y-0.5">
+                  <span className="text-slate-500 block font-semibold">ပို့သူ (မန္တလေး):</span>
+                  <div className="font-bold text-slate-900">{parcel.senderName}</div>
+                  <div className="font-mono text-slate-700">{parcel.senderPhone}</div>
+                  <div className="text-[10px] text-slate-500">{parcel.senderAddress}</div>
                 </div>
 
-                <div>
-                  <span className="text-slate-500 block font-semibold text-[10px]">
-                    📥 လက်ခံသူ (ကလေးမြို့):
-                  </span>
-                  <div className="font-bold text-slate-900">{parcel.receiverName} ({parcel.receiverPhone})</div>
-                  <div className="text-[10px] text-slate-600">{parcel.receiverAddress}</div>
+                <div className="space-y-0.5">
+                  <span className="text-slate-500 block font-semibold">လက်ခံသူ (ကလေး):</span>
+                  <div className="font-bold text-slate-900">{parcel.receiverName}</div>
+                  <div className="font-mono text-slate-700">{parcel.receiverPhone}</div>
+                  <div className="text-[10px] text-slate-500">{parcel.receiverAddress}</div>
                 </div>
               </div>
 
-              {/* Cargo Details with Dual Unit (Viss + Kg) */}
-              <div className="space-y-1.5 border-b border-dashed border-slate-300 pb-3">
+              {/* Goods Details */}
+              <div className="space-y-1 py-1 border-b border-dashed border-slate-300 text-[11px]">
                 <div className="flex justify-between">
-                  <span className="text-slate-600">ကုန်ပစ္စည်း:</span>
-                  <span className="font-semibold text-slate-900">
-                    {parcel.itemType}
-                    {parcel.isBulkyGoods && (
-                      <span className="ml-1 text-[9px] px-1 bg-purple-100 text-purple-800 rounded font-bold">
-                        ကုန်ပွ
-                      </span>
-                    )}
-                  </span>
+                  <span className="text-slate-600">ကုန်စည်အမျိုးအစား:</span>
+                  <span className="font-semibold text-slate-900">{parcel.itemType}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">အရေအတွက်:</span>
-                  <span className="font-medium text-slate-900">{parcel.packageCount} ထုပ်/ဖာ</span>
+                  <span className="font-semibold text-slate-900">{parcel.packageCount} ထုပ်</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-slate-600">အလေးချိန်:</span>
-                  <span className="font-bold font-mono text-slate-900">
+                  <span className="font-mono font-bold text-slate-900">
                     {formatNumber(parcel.weightViss, 1)} ပိဿာ (~ {formatNumber(weightInKg, 1)} Kg)
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">နှုန်းထား:</span>
-                  <span className="font-mono text-slate-700">
-                    {formatNumber(parcel.customerRatePerViss)} MMK/ပိဿာ (~ {formatNumber(rateInKg, 1)} MMK/Kg)
+                {parcel.isBulkyGoods && (
+                  <div className="flex justify-between items-center text-purple-700 font-semibold">
+                    <span>ကုန်ပွအထူးနှုန်း:</span>
+                    <span>{formatNumber(parcel.customerRatePerViss)} ကျပ်/ပိဿာ</span>
+                  </div>
+                )}
+                {parcel.itemDescription && (
+                  <div className="text-[10px] text-slate-500 italic pt-0.5">
+                    မှတ်ချက်: {parcel.itemDescription}
+                  </div>
+                )}
+              </div>
+
+              {/* Financial Calculation */}
+              <div className="pt-2 space-y-1">
+                <div className="flex justify-between text-xs font-bold text-slate-900">
+                  <span>ပို့ဆောင်ခ စုစုပေါင်း:</span>
+                  <span className="font-mono text-sm text-[#1877F2]">
+                    {formatMMK(parcel.totalDeliveryFee)}
                   </span>
                 </div>
               </div>
 
-              {/* Total Fee */}
-              <div className="flex justify-between items-center pt-1">
-                <span className="font-bold text-slate-900 text-sm">စုစုပေါင်း ကျသင့်ငွေ:</span>
-                <span className="font-extrabold font-mono text-base text-slate-900">
-                  {formatMMK(parcel.totalDeliveryFee)}
-                </span>
+              {/* Footer Note */}
+              <div className="text-center pt-3 text-[10px] text-slate-500 border-t border-slate-200">
+                BMK Express အား ရွေးချယ်အသုံးပြုမှုအတွက် အထူးပင် ကျေးဇူးတင်ရှိပါသည်။
               </div>
             </div>
           )}
 
-          {/* VIEW 2: Bluetooth Thermal Label Sticker (58mm/80mm ESC/POS format) */}
+          {/* VIEW 2: Bluetooth 58mm / 80mm Thermal Barcode Sticker */}
           {activeView === 'thermal_sticker' && (
             <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-white text-slate-950 font-mono border-4 border-slate-950 max-w-[320px] mx-auto text-xs space-y-2 shadow-xl">
-                {/* Header Tag */}
-                <div className="border-b-2 border-slate-950 pb-2 text-center">
-                  <span className="text-base font-black tracking-widest block uppercase">BMK EXPRESS</span>
-                  <span className="text-[10px] font-bold block">မန္တလေး ➔ ကလေး (KALAY)</span>
+              <div
+                id="thermal-sticker"
+                className="w-full max-w-[320px] mx-auto p-4 bg-white text-black font-mono border-2 border-black rounded-lg text-xs space-y-2.5 shadow-sm"
+              >
+                {/* Sticker Header */}
+                <div className="text-center border-b-2 border-black pb-2">
+                  <div className="font-black text-sm tracking-tighter">BMK EXPRESS CAR GATE</div>
+                  <div className="text-[10px] font-bold">မန္တလေး ➔ ကလေး အမြန်ကုန်တင်</div>
                 </div>
 
-                {/* Big Destination Badge */}
-                <div className="bg-slate-950 text-white p-2 text-center rounded">
-                  <span className="text-lg font-black tracking-wider block">ကလေး (KALAY)</span>
-                  <span className="text-[10px] font-medium text-slate-300">
-                    {parcel.paymentStatus === 'COD' ? '⚠️ ကလေးရောက်ငွေချေ (COD)' : '✅ ပို့ခရှင်းပြီး (PAID)'}
-                  </span>
+                {/* Big Route Stamp */}
+                <div className="flex items-center justify-between border-b-2 border-black py-1.5 font-bold">
+                  <span className="text-base bg-black text-white px-2 py-0.5 rounded">MDY ➔ KLY</span>
+                  <span className="text-xs">{parcel.paymentStatus}</span>
                 </div>
 
-                {/* Tracking ID & Big QR Code */}
-                <div className="text-center py-2 space-y-1">
-                  {qrSrc && (
-                    <img
-                      src={qrSrc}
-                      alt="Barcode QR"
-                      className="w-28 h-28 mx-auto border-2 border-slate-950 p-1"
-                    />
-                  )}
-                  <span className="font-black text-sm block tracking-wider">{parcel.id}</span>
+                {/* Receiver Focus */}
+                <div className="space-y-1 border-b border-black pb-2">
+                  <div className="text-[10px] text-gray-600">လက်ခံသူ (ကလေးမြို့):</div>
+                  <div className="font-black text-sm">{parcel.receiverName}</div>
+                  <div className="font-bold text-xs">{parcel.receiverPhone}</div>
+                  <div className="text-[10px] truncate">{parcel.receiverAddress}</div>
                 </div>
 
-                {/* Receiver Info */}
-                <div className="border-t-2 border-dashed border-slate-950 pt-2 space-y-0.5">
-                  <span className="text-[10px] text-slate-600 block">လက်ခံသူ (RECEIVER):</span>
-                  <span className="font-black text-xs block">{parcel.receiverName}</span>
-                  <span className="font-bold text-xs block">{parcel.receiverPhone}</span>
-                  <span className="text-[10px] block truncate">{parcel.receiverAddress}</span>
-                </div>
-
-                {/* Dual Weight in Sticker */}
-                <div className="border-t-2 border-slate-950 pt-1 flex justify-between items-center">
+                {/* Goods & Weight */}
+                <div className="grid grid-cols-2 gap-1 text-[11px] border-b border-black pb-1.5 font-bold">
                   <div>
-                    <span className="font-black text-sm block">{parcel.weightViss} VISS</span>
-                    <span className="text-[10px] text-slate-600 block">(~ {formatNumber(weightInKg, 1)} KG)</span>
+                    <span className="block text-[9px] text-gray-600">အလေးချိန်:</span>
+                    <span>{formatNumber(parcel.weightViss, 1)} ပိဿာ</span>
                   </div>
-                  <span className="text-[11px] font-bold">
-                    {parcel.isBulkyGoods ? '📦 ကုန်ပွ' : `${parcel.packageCount} ထုပ်`}
-                  </span>
+                  <div>
+                    <span className="block text-[9px] text-gray-600">အရေအတွက်:</span>
+                    <span>{parcel.packageCount} ထုပ်</span>
+                  </div>
+                </div>
+
+                {/* Barcode & ID */}
+                <div className="text-center pt-1">
+                  {qrSrc && <img src={qrSrc} alt="QR" className="w-20 h-20 mx-auto" />}
+                  <div className="font-black text-xs mt-1 tracking-widest">{parcel.id}</div>
                 </div>
               </div>
 
-              {/* Bluetooth Thermal Print Controls */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
-                <div className="flex items-center justify-between text-slate-300">
-                  <span className="flex items-center gap-1.5 font-semibold text-amber-400">
-                    <Bluetooth className="w-4 h-4 text-sky-400" />
-                    <span>အိတ်ဆောင် Bluetooth POS Label Printer (58mm/80mm)</span>
-                  </span>
-                  <span className="text-[11px] text-slate-500">ESC/POS</span>
-                </div>
-
-                <p className="text-[11px] text-slate-400">
-                  Android ဖုန်း သို့မဟုတ် တက်ဘလက်မှ Bluetooth ဖွင့်ထားသော စတစ်ကာပရင့်တာသို့ ကုန်စည်ကပ် ကော်စတစ်ကာ တိုက်ရိုက်ထုတ်ပေးပါသည်။
-                </p>
-
+              {/* Thermal Print Action */}
+              <div className="pt-2">
                 <button
+                  type="button"
                   onClick={handlePrintBluetoothThermal}
                   disabled={isBluetoothConnecting}
-                  className="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
+                  className="w-full py-2.5 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Bluetooth className="w-4 h-4" />
                   <span>
@@ -313,33 +298,69 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
             </div>
           )}
 
-          {/* Quick Share Buttons */}
-          <div className="space-y-2 pt-2 border-t border-slate-800">
-            <span className="text-xs text-slate-400 font-semibold block">
-              {lang === 'my' ? 'လူကြီးမင်းများထံ ဘောင်ချာ ပို့ပေးရန်:' : 'Share Voucher with Customer:'}
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {/* Customer Experience Auto Notification Section */}
+          <div className="space-y-2.5 pt-2 border-t border-[#e4e6eb]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[#050505] font-bold flex items-center gap-1.5">
+                <BellRing className="w-4 h-4 text-[#1877F2]" />
+                <span>{lang === 'my' ? 'ဖောက်သည်ထံသို့ ဘောင်ချာ အသိပေးစာ ပို့ရန် (Viber / SMS):' : 'Instant Customer Notification:'}</span>
+              </span>
+              <span className="text-[11px] text-[#65676b] font-mono font-semibold">
+                {parcel.receiverPhone}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
+                type="button"
+                onClick={() => {
+                  const text = generateViberReceiptText(parcel, weightUnit);
+                  openViberShare(text);
+                }}
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-[#7360f2] hover:bg-[#624ee0] text-white font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Viber အက်ပ်ဖြင့် တိုက်ရိုက်ပို့မည်</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const text = generateSmsReceiptText(parcel);
+                  openSmsApp(parcel.receiverPhone, text);
+                }}
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
+              >
+                <Send className="w-4 h-4" />
+                <span>SMS စာတို တိုက်ရိုက်ပို့မည်</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+              <button
+                type="button"
                 onClick={handleCopyViber}
-                className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition-colors"
+                className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] text-[#050505] font-semibold text-xs border border-[#e4e6eb] transition-colors cursor-pointer"
               >
-                {copiedViber ? <Check className="w-3.5 h-3.5" /> : <MessageSquare className="w-3.5 h-3.5" />}
-                <span>{copiedViber ? 'Viber ကူးယူပြီး!' : 'Viber စာသား ကူးမည်'}</span>
+                {copiedViber ? <Check className="w-3.5 h-3.5 text-purple-600" /> : <Copy className="w-3.5 h-3.5 text-purple-600" />}
+                <span>{copiedViber ? 'Viber ကူးယူပြီး!' : 'Viber စာသားကူး'}</span>
               </button>
 
               <button
+                type="button"
                 onClick={handleCopySms}
-                className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs transition-colors"
+                className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] text-[#050505] font-semibold text-xs border border-[#e4e6eb] transition-colors cursor-pointer"
               >
-                {copiedSms ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedSms ? 'SMS ကူးယူပြီး!' : 'SMS စာသား ကူးမည်'}</span>
+                {copiedSms ? <Check className="w-3.5 h-3.5 text-[#1877F2]" /> : <Copy className="w-3.5 h-3.5 text-[#1877F2]" />}
+                <span>{copiedSms ? 'SMS ကူးယူပြီး!' : 'SMS စာသားကူး'}</span>
               </button>
 
               <button
+                type="button"
                 onClick={handlePrint}
-                className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition-colors"
+                className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] text-[#050505] font-semibold text-xs border border-[#e4e6eb] transition-colors cursor-pointer"
               >
-                <Printer className="w-3.5 h-3.5" />
+                <Printer className="w-3.5 h-3.5 text-[#65676b]" />
                 <span>{lang === 'my' ? 'ပြေစာ ပရင့်ထုတ်' : 'Print Voucher'}</span>
               </button>
             </div>

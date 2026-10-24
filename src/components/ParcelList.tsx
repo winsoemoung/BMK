@@ -6,16 +6,19 @@ import {
   QrCode, 
   Share2, 
   AlertTriangle, 
-  CheckCircle, 
   ArrowRight, 
-  Truck, 
   Package, 
   Filter,
-  Camera,
-  Play,
+  Camera, 
   RotateCcw,
-  Zap,
-  Volume2
+  Zap, 
+  BellRing,
+  MessageSquare,
+  ThumbsUp,
+  Globe,
+  MoreHorizontal,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 
 interface ParcelListProps {
@@ -28,6 +31,7 @@ interface ParcelListProps {
   onBatchUpdateStatus: (parcelIds: string[], newStatus: ParcelStatus) => void;
   onOpenClaimModal: (parcel: Parcel) => void;
   onOpenBookingModal: () => void;
+  onOpenNotificationModal?: (parcel: Parcel, mode: 'INTAKE' | 'ARRIVAL') => void;
 }
 
 export const ParcelList: React.FC<ParcelListProps> = ({
@@ -40,6 +44,7 @@ export const ParcelList: React.FC<ParcelListProps> = ({
   onBatchUpdateStatus,
   onOpenClaimModal,
   onOpenBookingModal,
+  onOpenNotificationModal,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -73,7 +78,6 @@ export const ParcelList: React.FC<ParcelListProps> = ({
     }
     setRecentScannedNotice(`စကင်ဖတ်ပြီး: ${idToScan}`);
 
-    // If continuous mode is off, clear notice after 1.5s
     if (!isContinuousMode) {
       setTimeout(() => {
         setIsScannerOpen(false);
@@ -107,127 +111,108 @@ export const ParcelList: React.FC<ParcelListProps> = ({
   const getNextStatusLabel = (next: ParcelStatus): string => {
     switch (next) {
       case 'LOADED':
-        return lang === 'my' ? '၁၂ ဘီးကားပေါ်တင်မည်' : 'Load to Truck';
+        return lang === 'my' ? '၁၂ ဘီးကားပေါ်တင်' : 'Load Truck';
       case 'IN_TRANSIT':
-        return lang === 'my' ? 'လမ်းခရီးသို့ ထွက်ခွာမည်' : 'Depart (In Transit)';
+        return lang === 'my' ? 'လမ်းခရီးထွက်' : 'Depart';
       case 'ARRIVED_KALAY':
-        return lang === 'my' ? 'ကလေးဂိတ် ဆိုက်ရောက်' : 'Arrived at Kalay';
+        return lang === 'my' ? 'ကလေးဂိတ်ရောက်' : 'Arrive Kalay';
       case 'DELIVERED':
-        return lang === 'my' ? 'လူကြီးမင်းထံ အပ်နှံပြီး' : 'Mark Delivered';
+        return lang === 'my' ? 'အပ်နှံပြီး' : 'Deliver';
       default:
         return '';
     }
   };
 
   return (
-    <div className="space-y-5">
-      {/* Search, Filter Bar and Scanner Trigger */}
-      <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900/80 shadow-sm space-y-3">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          {/* Search Input */}
+    <div className="space-y-4">
+      {/* Search & Filter Header (Facebook Feed Control Card) */}
+      <div className="p-4 rounded-xl border border-[#e4e6eb] bg-white shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          {/* Search Pill Input */}
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3.5 top-3 text-[#65676b]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={
                 lang === 'my'
-                  ? 'ဘောင်ချာအမှတ်၊ ပို့သူ/လက်ခံသူ အမည်၊ ဖုန်းနံပါတ်ဖြင့် ရှာဖွေပါ...'
+                  ? 'ဘောင်ချာအမှတ်၊ ပို့သူ/လက်ခံသူ၊ ဖုန်းနံပါတ်ဖြင့် ရှာပါ...'
                   : 'Search by Tracking ID, Name, Phone, or Item...'
               }
-              className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+              className="w-full pl-9 pr-4 py-2 bg-[#f0f2f5] focus:bg-white focus:ring-2 focus:ring-[#1877F2] focus:outline-none rounded-full text-xs sm:text-sm text-[#050505] placeholder-[#65676b] transition-all"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-white"
+                className="absolute right-3.5 top-2.5 text-xs text-[#65676b] hover:text-[#050505]"
               >
                 Clear
               </button>
             )}
           </div>
 
-          {/* Continuous Batch Camera Scanner Trigger */}
+          {/* Scanner Trigger */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsScannerOpen(!isScannerOpen)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                 isScannerOpen
-                  ? 'bg-amber-400 text-slate-950 border-amber-400 font-bold'
-                  : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                  ? 'bg-[#1877F2] text-white shadow-sm'
+                  : 'bg-[#f0f2f5] hover:bg-[#e4e6eb] text-[#050505]'
               }`}
             >
               <Camera className="w-4 h-4" />
-              <span>{lang === 'my' ? 'ML Kit တရစပ် စကင်နာ' : 'Continuous Batch Scanner'}</span>
+              <span>{lang === 'my' ? 'ML Kit စကင်နာ' : 'Batch Scanner'}</span>
             </button>
 
             <button
               onClick={onOpenBookingModal}
-              className="px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs whitespace-nowrap shadow-sm"
+              className="px-3.5 py-2 rounded-lg bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold text-xs whitespace-nowrap shadow-sm cursor-pointer"
             >
-              + {lang === 'my' ? 'ပစ္စည်းအသစ်သွင်း' : 'New Parcel'}
+              + {lang === 'my' ? 'ဘောင်ချာအသစ်' : 'New Parcel'}
             </button>
           </div>
         </div>
 
-        {/* Google ML Kit Continuous Camera Batch Scanner Panel */}
+        {/* Continuous Batch Camera Scanner Panel */}
         {isScannerOpen && (
-          <div className="p-4 rounded-xl bg-slate-950 border border-amber-500/50 space-y-3">
+          <div className="p-4 rounded-xl bg-[#f0f2f5] border border-[#1877F2]/40 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-amber-400 flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-amber-400" />
-                  {lang === 'my' ? 'Google ML Kit စကင်နာ (Batch Scanning Mode)' : 'Google ML Kit Continuous Scanner'}
+                <span className="font-bold text-[#1877F2] flex items-center gap-1.5">
+                  <Zap className="w-4 h-4" />
+                  <span>Google ML Kit Batch Scanner</span>
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono text-[10px]">
-                  Camera Active
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono text-[10px]">
+                  Camera Ready
                 </span>
               </div>
 
-              {/* Toggle Continuous Mode */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsContinuousMode(!isContinuousMode)}
-                  className={`px-2.5 py-1 rounded text-xs font-semibold border transition-colors ${
-                    isContinuousMode
-                      ? 'bg-purple-600 text-white border-purple-500'
-                      : 'bg-slate-900 text-slate-400 border-slate-800'
-                  }`}
-                >
-                  {isContinuousMode ? '⚡ တရစပ်စကင်ဖတ်မှု ဖွင့်ထားသည်' : 'Single Scan'}
-                </button>
-              </div>
-            </div>
-
-            {/* Simulated Live Viewfinder */}
-            <div className="h-36 rounded-xl border-2 border-dashed border-amber-500/50 bg-slate-900/80 flex flex-col items-center justify-center p-3 relative overflow-hidden">
-              <div className="w-32 h-20 border-2 border-amber-400 rounded-lg flex items-center justify-center relative">
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-400 animate-pulse shadow-sm shadow-amber-400" />
-                <span className="text-[10px] font-mono text-amber-300">Scan QR / Barcode</span>
-              </div>
-
-              {recentScannedNotice && (
-                <div className="absolute bottom-2 left-4 right-4 bg-emerald-950/90 border border-emerald-500/40 text-emerald-300 text-xs py-1 px-3 rounded-lg text-center font-bold">
-                  {recentScannedNotice}
-                </div>
-              )}
+              <button
+                onClick={() => setIsContinuousMode(!isContinuousMode)}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+                  isContinuousMode
+                    ? 'bg-[#1877F2] text-white shadow-sm'
+                    : 'bg-white text-[#65676b] border border-[#e4e6eb]'
+                }`}
+              >
+                {isContinuousMode ? '⚡ Continuous Mode ON' : 'Single Scan'}
+              </button>
             </div>
 
             {/* Quick Test Barcode Buttons */}
             <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] text-slate-400">
-                  {lang === 'my' ? 'ကလစ်နှိပ်၍ စကင်ဖတ်မှု စမ်းသပ်ပါ:' : 'Quick Scan Barcodes:'}
-                </span>
+                <span className="text-[11px] text-[#65676b]">Quick Barcode click:</span>
                 {parcels.slice(0, 4).map((p) => (
                   <button
                     key={p.id}
                     onClick={() => handleSimulateScan(p.id)}
-                    className={`px-2 py-1 rounded text-[10px] font-mono transition-colors ${
+                    className={`px-2 py-1 rounded text-[10px] font-mono transition-colors cursor-pointer ${
                       scannedBatchIds.includes(p.id)
-                        ? 'bg-emerald-600 text-white font-bold'
-                        : 'bg-slate-800 text-amber-300 hover:bg-slate-700'
+                        ? 'bg-[#1877F2] text-white font-bold'
+                        : 'bg-white text-[#1877F2] border border-[#e4e6eb] hover:bg-[#e7f3ff]'
                     }`}
                   >
                     {p.id}
@@ -235,45 +220,43 @@ export const ParcelList: React.FC<ParcelListProps> = ({
                 ))}
               </div>
 
-              {/* Scanned Batch Tally */}
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-amber-400 font-bold text-xs">
-                  {scannedBatchIds.length} ခု စကင်ဖတ်ပြီး
-                </span>
-                {scannedBatchIds.length > 0 && (
+              {scannedBatchIds.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[#1877F2] font-bold text-xs">
+                    {scannedBatchIds.length} Scanned
+                  </span>
                   <button
                     onClick={() => setScannedBatchIds([])}
-                    className="p-1 text-slate-400 hover:text-white"
-                    title="Clear batch"
+                    className="p-1 text-[#65676b] hover:text-[#050505]"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Batch Action Bar if items scanned */}
             {scannedBatchIds.length > 0 && (
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className="text-slate-300">
-                  ရွေးချယ်ထားသော ဘောင်ချာ <strong>{scannedBatchIds.length}</strong> ခုကို တစ်ပြိုင်နက် ပြောင်းလဲမည်-
+              <div className="p-3 rounded-lg bg-white border border-[#e4e6eb] flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="text-[#050505] font-medium">
+                  Update <strong>{scannedBatchIds.length}</strong> vouchers to:
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => handleApplyBatchStatus('LOADED')}
-                    className="px-2.5 py-1 rounded bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold"
+                    className="px-2.5 py-1 rounded bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold"
                   >
                     ကားပေါ်တင်ပြီး (Loaded)
                   </button>
                   <button
                     onClick={() => handleApplyBatchStatus('ARRIVED_KALAY')}
-                    className="px-2.5 py-1 rounded bg-purple-500 hover:bg-purple-400 text-white font-bold"
+                    className="px-2.5 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white font-bold"
                   >
-                    ကလေးဂိတ်ရောက် (Arrived)
+                    ကလေးရောက် (Arrived)
                   </button>
                   <button
                     onClick={() => handleApplyBatchStatus('DELIVERED')}
-                    className="px-2.5 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold"
+                    className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
                   >
                     အပ်နှံပြီး (Delivered)
                   </button>
@@ -283,14 +266,10 @@ export const ParcelList: React.FC<ParcelListProps> = ({
           </div>
         )}
 
-        {/* Filter Tabs: Status & Payment */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-800/80 text-xs">
-          {/* Status segmented buttons */}
-          <div className="flex items-center gap-1 overflow-x-auto py-1">
-            <span className="text-slate-500 font-medium mr-1 flex items-center gap-1">
-              <Filter className="w-3 h-3" />
-              <span>{lang === 'my' ? 'အခြေအနေ:' : 'Status:'}</span>
-            </span>
+        {/* Filter Segmented Controls (Facebook Pills Style) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#e4e6eb] text-xs">
+          {/* Status Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
             {[
               { key: 'ALL', label: lang === 'my' ? 'အားလုံး' : 'All' },
               { key: 'BOOKED', label: lang === 'my' ? 'ဂိတ်လက်ခံ' : 'Booked' },
@@ -303,10 +282,10 @@ export const ParcelList: React.FC<ParcelListProps> = ({
               <button
                 key={tab.key}
                 onClick={() => setStatusFilter(tab.key)}
-                className={`px-2.5 py-1 rounded-md transition-colors whitespace-nowrap text-xs ${
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
                   statusFilter === tab.key
-                    ? 'bg-amber-400 text-slate-950 font-bold'
-                    : 'text-slate-400 hover:text-white bg-slate-950'
+                    ? 'bg-[#e7f3ff] text-[#1877F2]'
+                    : 'text-[#65676b] hover:bg-[#f0f2f5]'
                 }`}
               >
                 {tab.label}
@@ -316,9 +295,8 @@ export const ParcelList: React.FC<ParcelListProps> = ({
 
           {/* Payment filter */}
           <div className="flex items-center gap-1">
-            <span className="text-slate-500 font-medium mr-1">{lang === 'my' ? 'ငွေရှင်း:' : 'Pay:'}</span>
             {[
-              { key: 'ALL', label: 'All' },
+              { key: 'ALL', label: 'All Pay' },
               { key: 'PAID', label: 'Paid' },
               { key: 'COD', label: 'COD' },
               { key: 'UNPAID', label: 'Unpaid' },
@@ -326,10 +304,10 @@ export const ParcelList: React.FC<ParcelListProps> = ({
               <button
                 key={pTab.key}
                 onClick={() => setPaymentFilter(pTab.key)}
-                className={`px-2 py-0.5 rounded text-[11px] ${
+                className={`px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer ${
                   paymentFilter === pTab.key
-                    ? 'bg-slate-700 text-white font-medium'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-[#1877F2] text-white'
+                    : 'text-[#65676b] hover:bg-[#f0f2f5]'
                 }`}
               >
                 {pTab.label}
@@ -339,15 +317,15 @@ export const ParcelList: React.FC<ParcelListProps> = ({
         </div>
       </div>
 
-      {/* Parcel Cards List */}
-      <div className="space-y-3">
+      {/* Parcels List (Facebook Post Cards) */}
+      <div className="space-y-4">
         {filteredParcels.length === 0 ? (
-          <div className="p-12 text-center rounded-2xl border border-slate-800 bg-slate-900/50 space-y-3">
-            <Package className="w-10 h-10 text-slate-600 mx-auto" />
-            <div className="text-slate-300 font-medium">
+          <div className="p-12 text-center rounded-xl border border-[#e4e6eb] bg-white shadow-sm space-y-3">
+            <Package className="w-12 h-12 text-[#65676b] mx-auto opacity-50" />
+            <div className="text-[#050505] font-bold text-base">
               {lang === 'my' ? 'ကုန်စည်မှတ်တမ်း မတွေ့ရှိပါ' : 'No Parcels Found'}
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[#65676b]">
               {lang === 'my'
                 ? 'ရှာဖွေမှု စာသား သို့မဟုတ် Filter ကို ပြောင်းလဲ စစ်ဆေးကြည့်ပါ။'
                 : 'Try adjusting your search query or status filter.'}
@@ -358,153 +336,227 @@ export const ParcelList: React.FC<ParcelListProps> = ({
             const nextStatus = getNextStatus(parcel.status);
 
             return (
-              <div
+              <article
                 key={parcel.id}
-                className="p-5 rounded-2xl border border-slate-800 bg-slate-900/80 hover:border-slate-700/80 transition-all space-y-4"
+                className="bg-white rounded-xl shadow-sm border border-[#e4e6eb] overflow-hidden hover:shadow-md transition-shadow"
               >
-                {/* Row 1: ID, Bulky Badge, Date, Status, Payment */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-amber-400 text-sm">{parcel.id}</span>
-                    {parcel.isBulkyGoods && (
-                      <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30">
-                        📦 ကုန်ပွ ({formatRate(parcel.customerRatePerViss, weightUnit, lang)})
-                      </span>
-                    )}
-                    <span className="text-slate-500 text-xs">·</span>
-                    <span className="text-slate-400 text-xs">
-                      {new Date(parcel.createdAt).toLocaleDateString('my-MM')}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* Payment tag */}
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded font-semibold ${
-                        parcel.paymentStatus === 'PAID'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : parcel.paymentStatus === 'COD'
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                      }`}
-                    >
-                      {parcel.paymentStatus === 'PAID'
-                        ? 'ငွေရှင်းပြီး (Paid)'
-                        : parcel.paymentStatus === 'COD'
-                        ? 'ကလေးရောက်ငွေချေ (COD)'
-                        : 'မရှင်းရသေး (Unpaid)'}
-                    </span>
-
-                    {/* Status tag */}
-                    <span
-                      className={`text-xs px-2.5 py-0.5 rounded font-bold ${
-                        parcel.status === 'DELIVERED'
-                          ? 'bg-emerald-500/20 text-emerald-300'
-                          : parcel.status === 'IN_TRANSIT'
-                          ? 'bg-sky-500/20 text-sky-300'
-                          : parcel.status === 'ARRIVED_KALAY'
-                          ? 'bg-purple-500/20 text-purple-300'
-                          : parcel.status === 'CLAIMED_LOST'
-                          ? 'bg-rose-500/20 text-rose-300'
-                          : 'bg-amber-500/20 text-amber-300'
-                      }`}
-                    >
-                      {getStatusBurmese(parcel.status)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Row 2: Sender & Receiver Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                  {/* Sender (Mandalay) */}
-                  <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-850 space-y-1">
-                    <span className="text-slate-400 block font-medium">
-                      📤 {lang === 'my' ? 'ပို့သူ (မန္တလေးဂိတ်)' : 'Sender (Mandalay):'}
-                    </span>
-                    <div className="font-bold text-white text-sm">{parcel.senderName}</div>
-                    <div className="font-mono text-slate-300">{parcel.senderPhone}</div>
-                    <div className="text-slate-400 truncate">{parcel.senderAddress}</div>
-                  </div>
-
-                  {/* Receiver (Kalay) */}
-                  <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-850 space-y-1">
-                    <span className="text-slate-400 block font-medium">
-                      📥 {lang === 'my' ? 'လက်ခံသူ (ကလေးမြို့)' : 'Receiver (Kalay):'}
-                    </span>
-                    <div className="font-bold text-white text-sm">{parcel.receiverName}</div>
-                    <div className="font-mono text-slate-300">{parcel.receiverPhone}</div>
-                    <div className="text-slate-400 truncate">{parcel.receiverAddress}</div>
-                  </div>
-                </div>
-
-                {/* Row 3: Weight, Rate & Delivery Fee (using WeightUnit) */}
-                <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-950/80 border border-slate-800">
-                  <div className="flex items-center gap-4 text-xs flex-wrap">
-                    <div>
-                      <span className="text-slate-500 block">{lang === 'my' ? 'အမျိုးအစား' : 'Item'}</span>
-                      <span className="font-medium text-slate-200">{parcel.itemType}</span>
+                {/* Facebook Post Header */}
+                <div className="p-3.5 sm:p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    {/* BMK Blue Avatar */}
+                    <div className="w-10 h-10 rounded-full bg-[#1877F2] text-white flex items-center justify-center font-black text-sm shadow shrink-0">
+                      BMK
                     </div>
+
                     <div>
-                      <span className="text-slate-500 block">{lang === 'my' ? 'အလေးချိန်' : 'Weight'}</span>
-                      <span className="font-bold font-mono text-amber-400 text-sm">
-                        {formatWeight(parcel.weightViss, weightUnit, lang)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 block">{lang === 'my' ? 'နှုန်းထား' : 'Rate'}</span>
-                      <span className="font-mono text-slate-300 font-semibold">
-                        {formatRate(parcel.customerRatePerViss, weightUnit, lang)}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-sm text-[#050505] hover:underline cursor-pointer">
+                          BMK Express Logistics
+                        </span>
+                        <span className="text-[11px] text-[#65676b]">·</span>
+                        <span className="text-[11px] text-[#65676b]">
+                          {parcel.bookedByStaff || 'MDY Staff'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-[11px] text-[#65676b]">
+                        <span>{new Date(parcel.createdAt).toLocaleDateString('my-MM')}</span>
+                        <span>·</span>
+                        <span className="flex items-center gap-0.5" title="Public Gate Record">
+                          <Globe className="w-3 h-3 text-[#65676b]" />
+                          <span>မန္တလေး ➔ ကလေး</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="text-right">
-                    <span className="text-xs text-slate-400 block">
-                      {lang === 'my' ? 'စုစုပေါင်း ဝန်ဆောင်ခ' : 'Total Delivery Fee'}
-                    </span>
-                    <span className="text-lg font-bold font-mono text-emerald-400">
-                      {formatMMK(parcel.totalDeliveryFee)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Row 4: Action Buttons (Receipt, Advance Status, File Claim) */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  {/* Tracking ID Badge & Payment Pill */}
                   <div className="flex items-center gap-2">
-                    {/* View Digital Receipt & Bluetooth Sticker */}
+                    <span className="px-2.5 py-1 rounded-full bg-[#e7f3ff] text-[#1877F2] font-mono font-bold text-xs">
+                      {parcel.id}
+                    </span>
                     <button
                       onClick={() => onSelectParcelForReceipt(parcel)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
+                      className="p-1 rounded-full hover:bg-[#f0f2f5] text-[#65676b] transition-colors"
+                      title="More details"
                     >
-                      <QrCode className="w-3.5 h-3.5 text-amber-400" />
-                      <span>{lang === 'my' ? 'ဘောင်ချာ / စတစ်ကာ' : 'Receipt & Sticker'}</span>
+                      <MoreHorizontal className="w-5 h-5" />
                     </button>
+                  </div>
+                </div>
 
-                    {/* Report Claim / Damage (if not already claimed) */}
-                    {parcel.status !== 'CLAIMED_LOST' && (
-                      <button
-                        onClick={() => onOpenClaimModal(parcel)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-rose-400 hover:bg-rose-950/40 border border-rose-900/40 text-xs transition-colors"
-                        title="Report lost or damaged cargo for compensation"
+                {/* Facebook Post Caption */}
+                <div className="px-3.5 sm:px-4 pb-2 text-xs sm:text-sm text-[#050505]">
+                  <p>
+                    📦 <strong className="text-[#1877F2]">{parcel.itemType}</strong> {parcel.packageCount} ထုပ်/ဖာ အား မန္တလေးဂိတ်တွင် စနစ်တကျ လက်ခံပြီး ဘောင်ချာဖွင့်လှစ်ပြီးပါပြီ။ 
+                    လက်ခံသူ <strong className="font-semibold">{parcel.receiverName}</strong> (ကလေးမြို့) ထံသို့ ၁၂ ဘီးကားဖြင့် ပို့ဆောင်ပေးပါမည်။
+                  </p>
+                </div>
+
+                {/* Facebook Post Attachment / Media Card (Logistics Slip Box) */}
+                <div className="mx-3.5 sm:mx-4 mb-3 p-3.5 rounded-xl bg-[#f0f2f5] border border-[#e4e6eb] space-y-3 text-xs">
+                  {/* Route & Status Banner */}
+                  <div className="flex items-center justify-between pb-2 border-b border-[#e4e6eb]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-[#1877F2] uppercase tracking-wide">
+                        မန္တလေးဂိတ် ➔ ကလေးဂိတ်
+                      </span>
+                      {parcel.isBulkyGoods && (
+                        <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 text-[10px] font-bold">
+                          📦 ကုန်ပွစျေး
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          parcel.paymentStatus === 'PAID'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : parcel.paymentStatus === 'COD'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-rose-100 text-rose-800'
+                        }`}
                       >
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        <span>{lang === 'my' ? 'လျော်ကြေးတင်' : 'Report Loss'}</span>
-                      </button>
-                    )}
+                        {parcel.paymentStatus === 'PAID'
+                          ? 'ရှင်းပြီး (PAID)'
+                          : parcel.paymentStatus === 'COD'
+                          ? 'ကလေးရောက်ငွေချေ (COD)'
+                          : 'မရှင်းရသေး (UNPAID)'}
+                      </span>
+
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white text-[#050505] border border-[#e4e6eb]">
+                        {getStatusBurmese(parcel.status)}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Next Step Workflow Action Button */}
-                  {nextStatus && (
+                  {/* Sender & Receiver 2-Column Split */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="bg-white p-2.5 rounded-lg border border-[#e4e6eb] space-y-0.5">
+                      <span className="text-[#65676b] block text-[10px] font-medium">📤 ပို့သူ (မန္တလေး):</span>
+                      <div className="font-bold text-[#050505]">{parcel.senderName}</div>
+                      <div className="font-mono text-[#1877F2] text-[11px]">{parcel.senderPhone}</div>
+                      <div className="text-[10px] text-[#65676b] truncate">{parcel.senderAddress}</div>
+                    </div>
+
+                    <div className="bg-white p-2.5 rounded-lg border border-[#e4e6eb] space-y-0.5">
+                      <span className="text-[#65676b] block text-[10px] font-medium">📥 လက်ခံသူ (ကလေးမြို့):</span>
+                      <div className="font-bold text-[#050505]">{parcel.receiverName}</div>
+                      <div className="font-mono text-[#1877F2] text-[11px]">{parcel.receiverPhone}</div>
+                      <div className="text-[10px] text-[#65676b] truncate">{parcel.receiverAddress}</div>
+                    </div>
+                  </div>
+
+                  {/* Weight, Rate & Fee Footer Strip */}
+                  <div className="flex items-center justify-between pt-1 text-xs">
+                    <div>
+                      <span className="text-[#65676b] block text-[10px]">အလေးချိန် နှင့် နှုန်းထား:</span>
+                      <span className="font-bold text-[#050505] font-mono">
+                        {formatWeight(parcel.weightViss, weightUnit, lang)}
+                      </span>
+                      <span className="text-[#65676b] text-[10px] ml-1">
+                        ({formatRate(parcel.customerRatePerViss, weightUnit, lang)})
+                      </span>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[#65676b] block text-[10px]">စုစုပေါင်း ပို့ဆောင်ခ:</span>
+                      <span className="font-black text-sm text-emerald-600 font-mono">
+                        {formatMMK(parcel.totalDeliveryFee)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Facebook Reactions Strip (Like & Comments counter) */}
+                <div className="px-4 py-2 flex items-center justify-between text-xs text-[#65676b] border-t border-[#e4e6eb]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#1877F2] text-white flex items-center justify-center text-[9px]">
+                      👍
+                    </span>
+                    <span className="hover:underline cursor-pointer">
+                      ၁၂ ဘီးယာဉ်မောင်း နှင့် အခြား 18 ဦး
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {parcel.notifiedArrivalAt ? (
+                      <span className="text-purple-600 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>ဆိုက်ရောက်စာပို့ပြီး</span>
+                      </span>
+                    ) : parcel.notifiedIntakeAt ? (
+                      <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>ဘောင်ချာစာပို့ပြီး</span>
+                      </span>
+                    ) : (
+                      <span className="text-[#65676b]">အသိပေးစာ မပို့ရသေး</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Facebook Action Bar (Like, Comment, Share, Action buttons) */}
+                <div className="border-t border-[#e4e6eb] px-2 py-1 grid grid-cols-2 sm:grid-cols-4 gap-1">
+                  {/* Action 1: Next Status Workflow (Facebook Like button style) */}
+                  {nextStatus ? (
                     <button
                       onClick={() => onUpdateStatus(parcel.id, nextStatus)}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-sm active:scale-95 transition-all"
+                      className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg hover:bg-[#f2f2f2] text-[#1877F2] font-semibold text-xs transition-colors cursor-pointer"
                     >
-                      <span>{getNextStatusLabel(nextStatus)}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <ThumbsUp className="w-4 h-4" />
+                      <span className="truncate">{getNextStatusLabel(nextStatus)}</span>
                     </button>
+                  ) : (
+                    <div className="flex items-center justify-center gap-1.5 py-2 px-2 text-emerald-600 font-semibold text-xs">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>ပြီးစီး (Done)</span>
+                    </div>
+                  )}
+
+                  {/* Action 2: Customer Notification (Facebook Comment / Messenger style) */}
+                  <button
+                    onClick={() =>
+                      onOpenNotificationModal &&
+                      onOpenNotificationModal(
+                        parcel,
+                        parcel.status === 'ARRIVED_KALAY' ? 'ARRIVAL' : 'INTAKE'
+                      )
+                    }
+                    className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg hover:bg-[#f2f2f2] text-[#65676b] hover:text-purple-600 font-semibold text-xs transition-colors cursor-pointer"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span className="truncate">
+                      {parcel.status === 'ARRIVED_KALAY' ? 'အရောက်ပို့ (Viber)' : 'ဘောင်ချာပို့ (SMS)'}
+                    </span>
+                  </button>
+
+                  {/* Action 3: Receipt & Sticker (Facebook Share style) */}
+                  <button
+                    onClick={() => onSelectParcelForReceipt(parcel)}
+                    className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg hover:bg-[#f2f2f2] text-[#65676b] hover:text-[#050505] font-semibold text-xs transition-colors cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span className="truncate">{lang === 'my' ? 'ဘောင်ချာပြေစာ' : 'Voucher'}</span>
+                  </button>
+
+                  {/* Action 4: Claim / Report Loss */}
+                  {parcel.status !== 'CLAIMED_LOST' ? (
+                    <button
+                      onClick={() => onOpenClaimModal(parcel)}
+                      className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg hover:bg-[#f2f2f2] text-[#65676b] hover:text-rose-600 font-semibold text-xs transition-colors cursor-pointer"
+                    >
+                      <AlertTriangle className="w-4 h-4" />
+                      <span className="truncate">{lang === 'my' ? 'လျော်ကြေး' : 'Claim'}</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-center py-2 text-rose-500 font-semibold text-xs">
+                      <span>လျော်ပြီး</span>
+                    </div>
                   )}
                 </div>
-              </div>
+              </article>
             );
           })
         )}
